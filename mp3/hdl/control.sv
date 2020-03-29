@@ -4,6 +4,7 @@ module control_rom
 (
     input rv32i_opcode opcode,
     /* ... other inputs ... */
+    input mem_resp,
     output rv32i_control_word ctrl
 );
 
