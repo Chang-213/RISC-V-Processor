@@ -7,10 +7,10 @@ module control_rom
     input logic [2:0] funct3,
     input logic [6:0] funct7,
     input logic br_en,
-    input logic [4:0] rs1,
-    input logic [4:0] rs2,
+    // input logic [4:0] rs1,
+    // input logic [4:0] rs2,
 
-    input mem_resp,
+    // input mem_resp,
 
     output rv32i_control_word ctrl
 );
@@ -65,6 +65,15 @@ begin
         end
         op_load: begin
           ctrl.aluop = alu_add;
+          load_regfile = 1'b1;
+          case(load_funct3)
+            lw: ctrl.regfilemux_sel = regfilemux::lw;
+            lh: ctrl.regfilemux_sel = regfilemux::lh;
+            lhu: ctrl.regfilemux_sel = regfilemux::lhu;
+            lb: ctrl.regfilemux_sel = regfilemux::lb;
+            lbu: ctrl.regfilemux_sel = regfilemux::lbu;
+          endcase
+          ctrl.load_pc = 1'b1;
           // load_mar = 1'b1;
           // ctrl.marmux_sel = marmux::alu_out;
         end
@@ -118,7 +127,50 @@ begin
           endcase
         end
         op_reg: begin
-
+          case(arith_funct3)
+            add: begin
+              case (funct7)
+                7'b0100000: ctrl.aluop = alu_sub;
+                7'b0000000: ctrl.aluop = alu_add;
+                default: ctrl.aluop = alu_add;
+              endcase
+              ctrl.alumux2_sel = alumux::rs2_out;
+              ctrl.load_regfile = 1'b1;
+              ctrl.load_pc = 1'b1;
+            end
+            slt: begin
+              ctrl.load_regfile = 1'b1;
+              ctrl.load_pc = 1'b1;
+              ctrl.cmpop = blt;
+              ctrl.regfilemux_sel = regfilemux::br_en;
+              ctrl.alumux2_sel = alumux::rs2_out;
+              ctrl.cmpmux_sel = cmpmux::rs2_out;
+            end
+            sltu: begin
+              ctrl.load_regfile = 1'b1;
+              ctrl.load_pc = 1'b1;
+              ctrl.cmpop = bltu;
+              ctrl.regfilemux_sel = regfilemux::br_en;
+              ctrl.alumux2_sel = alumux::rs2_out;
+              ctrl.cmpmux_sel = cmpmux::rs2_out;
+            end
+            sr: begin
+              ctrl.load_regfile = 1'b1;
+              ctrl.load_pc = 1'b1;
+              ctrl.alumux2_sel = alumux::rs2_out;
+              case(funct7)
+                7'b0100000: ctrl.aluop = alu_sra;
+                7'b0000000: ctrl.aluop = alu_srl;
+                default: ctrl.aluop = alu_sra;
+              endcase
+            end
+            default: begin
+              ctrl.alumux2_sel = alumux::rs2_out;
+              ctrl.load_regfile = 1'b1;
+              ctrl.load_pc = 1'b1;
+              ctrl.aluop = alu_ops'(funct3);
+            end
+          endcase
         end
         op_br: begin
           ctrl.pcmux_sel = br_en ? pcmux::alu_out : pcmux::pc_plus4;

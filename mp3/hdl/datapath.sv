@@ -6,7 +6,7 @@ module datapath
 (
     input clk,
     input rst,
-    
+
 	 //Control to Datapath
 	 //PC signals
 	 input load_pc,
@@ -14,7 +14,7 @@ module datapath
 	 input load_pc_reg_e,
 	 input load_pc_reg_m,
 	 input load_pc_wb,
-	 
+
 	 //IR signals
 	 input load_ir,
 	 input load_ir_d,
@@ -33,47 +33,35 @@ module datapath
 	 input load_ir_e_jimm,
 	 input rv32i_word mem_rdata,
 	 output rv32i_opcode opcode,
-    output rv32i_word alu_out,
+   output rv32i_word alu_out,
 	 output [2:0] funct3,
 	 output [6:0] funct7,
 	 output [4:0] rs1,
 	 output [4:0] rs2,
-	 
+
 	 //regfile signals
 	 input load_regfile,
 	 input load_rs1_reg,
 	 input load_rs2_reg_e,
 	 input load_rs2_reg_m,
-	 
-	 //Control signals
-	 input alumux::alumux1_sel_t alumux1_sel,
-	 input alumux::alumux2_sel_t alumux2_sel,
-	 input load_alumux1_sel_e,
-	 input load_alumux2_sel_e,
-	 input cmpmux::cmpmux_sel_t cmpmux_sel,
-	 input load_cmpmux_sel_e,
 	 input regfilemux::regfilemux_sel_t regfilemux_sel,
-	 input load_regfilemux_sel_e,
-	 input load_regfilemux_sel_m,
-	 input load_regfilemux_sel_wb,
-	 //Control signals I'm not sure about
-	 input pcmux::pcmux_sel_t pcmux_sel,
-	 input load_pcmux_sel_e,
-	 input load_pcmux_sel_m,
 
-	 
 	 //ALU signals
 	 input alu_ops aluop,
 	 input load_alu_reg_m,
 	 input load_alu_reg_wb,
-	 
+
 	 //CMP signals
 	 input load_cmp_reg_m,
 	 input load_cmp_reg_wb,
 	 input branch_funct3_t cmpop,
-	 
-	 
+
 	 input load_data_out,
+	 input pcmux::pcmux_sel_t pcmux_sel,
+	 input alumux::alumux1_sel_t alumux1_sel,
+	 input alumux::alumux2_sel_t alumux2_sel,
+	 input marmux::marmux_sel_t marmux_sel,
+	 input cmpmux::cmpmux_sel_t cmpmux_sel,
     input rv32i_control_word ctrl,
 
     output rv32i_word mem_wdata // signal used by RVFI Monitor
@@ -124,16 +112,6 @@ rv32i_word alumux2_out;
 rv32i_word alu_reg_m;
 rv32i_word alu_reg_out;
 
-//Control Values
-logic alumux1_sel_e = 1'b0;
-logic [2:0] alumux2_sel_e = 3'b000;
-logic cmpmux_sel_e = 1'b0;
-logic [3:0] regfilemux_sel_e = 4'b0000;
-logic [3:0] regfilemux_sel_m = 4'b0000;
-logic [3:0] regfilemux_sel_wb = 4'b0000;
-logic [1:0] pcmux_sel_e = 2'b00;
-logic [1:0] pcmux_sel_m = 2'b00;
-
 //CMP values
 rv32i_word cmp_mux_out;
 rv32i_word br_en_regmux;
@@ -164,10 +142,10 @@ pc_register PC(
 mux3 PCMUX(
 	.clk,
 	.rst,
-	.select (pcmux_sel_m),
+	.select (pcmux_sel),
 	.in0 (pc_out + 32'h00000004),
-	.in1 (alu_reg_m),
-	.in2 ({alu_reg_m[31:1], 1'b0}),
+	.in1 (alu_out),
+	.in2 ({alu_out[31:1], 1'b0}),
 	.out (pcmux_out)
 );
 
@@ -353,7 +331,7 @@ regfile regfile(
 mux9 REGMUX(
 	.clk,
 	.rst,
-	.select (regfilemux_sel_wb),
+	.select (regfilemux_sel),
 	.in0 (alu_reg_out),
 	.in1 (cmp_wb_out),
 	.in2 (u_imm_d),
@@ -392,62 +370,7 @@ register RS2_Reg_M(
 ////////////////////////////////////////////////
 
 /////////////Control////////////////////////////
-register #(.width(1)) ALUMUX1_E(
-	.clk (clk),
-   .rst (rst),
-   .load (load_alumux1_sel_e),
-   .in   (alumux1_sel),
-   .out  (alumux1_sel_e)
-);
-register #(.width(3)) ALUMUX2_E(
-	.clk (clk),
-   .rst (rst),
-   .load (load_alumux2_sel_e),
-   .in   (alumux2_sel),
-   .out  (alumux2_sel_e)
-);
-register #(.width(1)) CMPMUX_E(
-	.clk (clk),
-   .rst (rst),
-   .load (load_cmpmux_sel_e),
-   .in   (cmpmux_sel),
-   .out  (cmpmux_sel_e)
-);
-register #(.width(4)) REGFILEMUX_E(
-	.clk (clk),
-   .rst (rst),
-   .load (load_regfilemux_sel_e),
-   .in   (regfilemux_sel),
-   .out  (regfilemux_sel_e)
-);
-register #(.width(4)) REGFILEMUX_M(
-	.clk (clk),
-   .rst (rst),
-   .load (load_regfilemux_sel_e),
-   .in   (regfilemux_sel_e),
-   .out  (regfilemux_sel_m)
-);
-register #(.width(4)) REGFILEMUX_WB(
-	.clk (clk),
-   .rst (rst),
-   .load (load_regfilemux_sel_e),
-   .in   (regfilemux_sel_m),
-   .out  (regfilemux_sel_wb)
-);
-register #(.width(2)) PCMUX_E(
-	.clk (clk),
-   .rst (rst),
-   .load (load_pcmux_sel_e),
-   .in   (pcmux_sel),
-   .out  (pcmux_sel_e)
-);
-register #(.width(2)) PCMUX_M(
-	.clk (clk),
-   .rst (rst),
-   .load (load_pcmux_sel_m),
-   .in   (pcmux_sel_e),
-   .out  (pcmux_sel_m)
-);
+
 ////////////////////////////////////////////////
 
 ///////////ALU & Muxes//////////////////////////
@@ -461,7 +384,7 @@ alu ALU(
 mux2 ALUMUX1(
 	.clk,
 	.rst,
-	.select (alumux1_sel_e),
+	.select (alumux1_sel),
 	.in0 (rs1_reg_out),
 	.in1 (pc_e_out),
 	.out (alumux1_out)
@@ -470,7 +393,7 @@ mux2 ALUMUX1(
 mux6 ALUMUX2(
 	.clk,
 	.rst,
-	.select (alumux2_sel_e),
+	.select (alumux2_sel),
 	.in0 (i_imm_e),
 	.in1 (u_imm_e),
 	.in2 (b_imm_e),
@@ -509,7 +432,7 @@ cmp CMP(
 mux2 CMPMUX(
 	.clk,
 	.rst,
-	.select (cmpmux_sel_e),
+	.select (cmpmux_sel),
 	.in0 (rs2_reg_e_out),
 	.in1 (i_imm_e),
 	.out (cmp_mux_out)
