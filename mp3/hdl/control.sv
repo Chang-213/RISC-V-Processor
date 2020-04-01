@@ -6,7 +6,7 @@ module control_rom
     /* ... other inputs ... */
     input logic [2:0] funct3,
     input logic [6:0] funct7,
-    input logic br_en,
+    // input logic br_en,
     // input logic [4:0] rs1,
     // input logic [4:0] rs2,
 
@@ -173,7 +173,8 @@ begin
           endcase
         end
         op_br: begin
-          ctrl.pcmux_sel = br_en ? pcmux::alu_out : pcmux::pc_plus4;
+          // ctrl.pcmux_sel = br_en ? pcmux::alu_out : pcmux::pc_plus4;
+          ctrl.pcmux_sel = pcmux::alu_out;
           ctrl.load_pc = 1'b1;
           ctrl.alumux1_sel = alumux::pc_out;
           ctrl.alumux2_sel = alumux::b_imm;
