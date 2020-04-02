@@ -6,67 +6,28 @@ module datapath
 (
     input clk,
     input rst,
-
-	 //Control to Datapath
-	 //PC signals
-	 input load_pc,
-	 input load_pc_reg_d,
-	 input load_pc_reg_e,
-	 input load_pc_reg_m,
-	 input load_pc_wb,
-
-	 //IR signals
-	 input load_ir,
-	 input load_ir_d,
-	 input load_ir_e,
-	 input load_ir_m,
-	 input load_ir_wb,
-	 input load_ir_d_uimm,
-	 input load_ir_e_uimm,
-	 input load_ir_d_iimm,
-	 input load_ir_e_iimm,
-	 input load_ir_d_bimm,
-	 input load_ir_e_bimm,
-	 input load_ir_d_simm,
-	 input load_ir_e_simm,
-	 input load_ir_d_jimm,
-	 input load_ir_e_jimm,
-	 input rv32i_word mem_rdata,
-	 output rv32i_opcode opcode,
-   output rv32i_word alu_out,
-	 output [2:0] funct3,
-	 output [6:0] funct7,
-	 output [4:0] rs1,
-	 output [4:0] rs2,
-
-	 //regfile signals
-	 input load_regfile,
-	 input load_rs1_reg,
-	 input load_rs2_reg_e,
-	 input load_rs2_reg_m,
-	 input regfilemux::regfilemux_sel_t regfilemux_sel,
-
-	 //ALU signals
-	 input alu_ops aluop,
-	 input load_alu_reg_m,
-	 input load_alu_reg_wb,
-
-	 //CMP signals
-	 input load_cmp_reg_m,
-	 input load_cmp_reg_wb,
-	 input branch_funct3_t cmpop,
-
-	 input load_data_out,
-	 input pcmux::pcmux_sel_t pcmux_sel,
-	 input alumux::alumux1_sel_t alumux1_sel,
-	 input alumux::alumux2_sel_t alumux2_sel,
-	 input marmux::marmux_sel_t marmux_sel,
-	 input cmpmux::cmpmux_sel_t cmpmux_sel,
-    input rv32i_control_word ctrl,
-
-    output rv32i_word mem_wdata // signal used by RVFI Monitor
+	 input inst_resp,
+	 input [31:0] inst_rdata,
+	 input data_resp,
+	 input [31:0] data_rdata,
+	 output inst_read,
+	 output [31:0] inst_addr,
+	 output data_read,
+	 output data_write,
+	 output [3:0] data_mbe,
+	 output [31:0] data_addr,
+	 output [31:0] data_wdata
 );
+
+//Stage Load Values
+logic load_decode = 1'b0;
+logic load_execute = 1'b0;
+logic load_memory = 1'b0;
+logic load_writeback = 1'b0;
+
 //PC values
+logic load_pc;
+logic [1:0] pcmux_sel_m;
 rv32i_word pc_out;
 rv32i_word pc_d_out;
 rv32i_word pc_e_out;
@@ -76,21 +37,22 @@ rv32i_word pc_plus4_out;
 rv32i_word pcmux_out;
 
 //IR values
+logic [2:0] funct3;
+logic [6:0] funct7;
+rv32i_opcode opcode;
+logic [4:0] rs1;
+logic [4:0] rs2;
+
 rv32i_reg rd;
 rv32i_word i_imm;
-rv32i_word i_imm_d;
 rv32i_word i_imm_e;
 rv32i_word u_imm;
-rv32i_word u_imm_d;
 rv32i_word u_imm_e;
 rv32i_word b_imm;
-rv32i_word b_imm_d;
 rv32i_word b_imm_e;
 rv32i_word s_imm;
-rv32i_word s_imm_d;
 rv32i_word s_imm_e;
 rv32i_word j_imm;
-rv32i_word j_imm_d;
 rv32i_word j_imm_e;
 rv32i_word ir_d_out;
 rv32i_word ir_e_out;
@@ -109,10 +71,18 @@ rv32i_word regfilemux_out;
 //ALU values
 rv32i_word alumux1_out;
 rv32i_word alumux2_out;
+rv32i_word alu_out;
 rv32i_word alu_reg_m;
 rv32i_word alu_reg_out;
 
+//Control Values
+rv32i_control_word control_d;
+rv32i_control_word control_e;
+rv32i_control_word control_m;
+rv32i_control_word control_wb;
+
 //CMP values
+logic br_en;
 rv32i_word cmp_mux_out;
 rv32i_word br_en_regmux;
 rv32i_word cmp_m_out;
@@ -127,8 +97,69 @@ rv32i_word lw_out;
 
 //Data Cache
 rv32i_word corrected;
+rv32i_word write_data;
 
-rv32i_word mem_addr;
+//load MAR signal
+assign inst_read = 1'b1;
+assign inst_addr = pc_out;
+assign data_read = control_m.mem_read;
+assign data_write = control_m.mem_write;
+assign data_mbe = 4'b1111;
+assign data_addr = alu_reg_m;
+
+
+//////////////////PC Initial signals///////////
+always_comb
+begin
+	if(load_memory == 1)
+		begin
+		   pcmux_sel_m = control_m.pcmux_sel;
+		end
+	else
+		begin
+			pcmux_sel_m = 2'b00;
+		end
+end
+
+always_comb
+begin
+	if(inst_resp == 1 && !load_decode && !load_execute && !load_memory && !load_writeback)
+		begin
+		   load_pc = 1'b1;
+		end
+	else
+		begin
+			load_pc = control_d.load_pc;
+		end
+end
+//////////////////////////////////////////////
+
+////////////////Stage Transitions/////////////
+//initial
+//begin
+//	load_decode = 1'b0;
+//	load_execute = 1'b0;
+//	load_memory = 1'b0;
+//	load_writeback = 1'b0;
+//end
+//
+//assign load_decode = inst_resp & !data_read & !data_write & !load_writeback; 
+//assign load_execute = !data_read & !data_write & inst_resp & !load_decode;  
+//assign load_memory = !data_read & !data_write & data_resp !load_execute;
+//assign load_writeback = data_resp & !load_memory;
+stage STAGE(
+	.clk					(clk),
+	.rst					(rst),
+	.inst_resp			(inst_resp),
+	.data_resp			(data_resp),
+	.data_read			(data_read),
+	.data_write			(data_write),
+	.load_decode		(load_decode),
+	.load_execute		(load_execute),
+	.load_memory		(load_memory),
+	.load_writeback	(load_writeback)
+);
+//////////////////////////////////////////////
 
 //PC AND PCMUX AND PCREG///////////////////////
 pc_register PC(
@@ -142,17 +173,17 @@ pc_register PC(
 mux3 PCMUX(
 	.clk,
 	.rst,
-	.select (pcmux_sel),
+	.select (pcmux_sel_m),
 	.in0 (pc_out + 32'h00000004),
-	.in1 (alu_out),
-	.in2 ({alu_out[31:1], 1'b0}),
+	.in1 (alu_reg_m),
+	.in2 ({alu_reg_m[31:1], 1'b0}),
 	.out (pcmux_out)
 );
 
 register PC_Reg_D(
 	.clk (clk),
    .rst (rst),
-   .load (load_pc_reg_d),
+   .load (load_decode),
    .in   (pc_out),
    .out  (pc_d_out)
 );
@@ -160,7 +191,7 @@ register PC_Reg_D(
 register PC_Reg_E(
 	.clk (clk),
    .rst (rst),
-   .load (load_pc_reg_e),
+   .load (load_execute),
    .in   (pc_d_out),
    .out  (pc_e_out)
 );
@@ -168,7 +199,7 @@ register PC_Reg_E(
 register PC_Reg_M(
 	.clk (clk),
    .rst (rst),
-   .load (load_pc_reg_m),
+   .load (load_memory),
    .in   (pc_e_out),
    .out  (pc_m_out)
 );
@@ -176,7 +207,7 @@ register PC_Reg_M(
 register PC_Reg_WB(
 	.clk (clk),
    .rst (rst),
-   .load (load_pc_wb),
+   .load (load_writeback),
    .in   (pc_m_out + 32'h00000004),
    .out  (pc_wb_out)
 );
@@ -186,8 +217,8 @@ register PC_Reg_WB(
 ir IR(
 	.clk (clk),
 	.rst (rst),
-	.load (load_ir),
-	.in (mdrreg_out),
+	.load (load_decode),
+	.in (ir_d_out),
 	.funct3 (funct3),
 	.funct7 (funct7),
 	.opcode (opcode),
@@ -204,15 +235,15 @@ ir IR(
 register IR_Reg_D(
 	.clk (clk),
    .rst (rst),
-   .load (load_ir_d),
-   .in   (mdrreg_out),
+   .load (load_decode),
+   .in   (inst_rdata),
    .out  (ir_d_out)
 );
 
 register IR_Reg_E(
 	.clk (clk),
    .rst (rst),
-   .load (load_ir_e),
+   .load (load_execute),
    .in   (ir_d_out),
    .out  (ir_e_out)
 );
@@ -220,7 +251,7 @@ register IR_Reg_E(
 register IR_Reg_M(
 	.clk (clk),
    .rst (rst),
-   .load (load_ir_m),
+   .load (load_memory),
    .in   (ir_e_out),
    .out  (ir_m_out)
 );
@@ -228,88 +259,48 @@ register IR_Reg_M(
 register IR_Reg_WB(
 	.clk (clk),
    .rst (rst),
-   .load (load_ir_wb),
+   .load (load_writeback),
    .in   (ir_m_out),
    .out  (ir_wb_out)
-);
-
-register IR_Reg_D_UIMM(
-	.clk (clk),
-   .rst (rst),
-   .load (load_ir_d_uimm),
-   .in   (u_imm),
-   .out  (u_imm_d)
 );
 
 register IR_Reg_E_UIMM(
 	.clk (clk),
    .rst (rst),
-   .load (load_ir_e_uimm),
-   .in   (u_imm_d),
+   .load (load_execute),
+   .in   (u_imm),
    .out  (u_imm_e)
-);
-
-register IR_Reg_D_IIMM(
-	.clk (clk),
-   .rst (rst),
-   .load (load_ir_d_iimm),
-   .in   (i_imm),
-   .out  (i_imm_d)
 );
 
 register IR_Reg_E_IIMM(
 	.clk (clk),
    .rst (rst),
-   .load (load_ir_e_iimm),
-   .in   (i_imm_d),
+   .load (load_execute),
+   .in   (i_imm),
    .out  (i_imm_e)
-);
-
-register IR_Reg_D_BIMM(
-	.clk (clk),
-   .rst (rst),
-   .load (load_ir_d_bimm),
-   .in   (b_imm),
-   .out  (b_imm_d)
 );
 
 register IR_Reg_E_BIMM(
 	.clk (clk),
    .rst (rst),
-   .load (load_ir_e_bimm),
-   .in   (b_imm_d),
+   .load (load_execute),
+   .in   (b_imm),
    .out  (b_imm_e)
-);
-
-register IR_Reg_D_SIMM(
-	.clk (clk),
-   .rst (rst),
-   .load (load_ir_d_simm),
-   .in   (s_imm),
-   .out  (s_imm_d)
 );
 
 register IR_Reg_E_SIMM(
 	.clk (clk),
    .rst (rst),
-   .load (load_ir_e_simm),
-   .in   (s_imm_d),
+   .load (load_execute),
+   .in   (s_imm),
    .out  (s_imm_e)
-);
-
-register IR_Reg_D_JIMM(
-	.clk (clk),
-   .rst (rst),
-   .load (load_ir_d_jimm),
-   .in   (j_imm),
-   .out  (j_imm_d)
 );
 
 register IR_Reg_E_JIMM(
 	.clk (clk),
    .rst (rst),
-   .load (load_ir_e_jimm),
-   .in   (j_imm_d),
+   .load (load_execute),
+   .in   (j_imm),
    .out  (j_imm_e)
 );
 ////////////////////////////////////////////////
@@ -318,7 +309,7 @@ register IR_Reg_E_JIMM(
 regfile regfile(
 	.clk,
 	.rst,
-	.load (load_regfile),
+	.load (control_d.load_regfile),
 	.in (regfilemux_out),
 	.src_a (rs1),
 	.src_b (rs2),
@@ -328,13 +319,14 @@ regfile regfile(
 );
 //Write_Reg signal???
 
+//in2, u_imm: unsure about the stage of u_imm required, u_imm is only selected for LUI instruction
 mux9 REGMUX(
 	.clk,
 	.rst,
-	.select (regfilemux_sel),
+	.select (control_wb.regfilemux_sel),
 	.in0 (alu_reg_out),
 	.in1 (cmp_wb_out),
-	.in2 (u_imm_d),
+	.in2 (u_imm),
 	.in3 (lw_out),	//lw
 	.in4 (pc_wb_out),
 	.in5 (lb_out),	//lb
@@ -347,7 +339,7 @@ mux9 REGMUX(
 register RS1_Reg(
 	.clk (clk),
    .rst (rst),
-   .load (load_rs1_reg),
+   .load (load_execute),
    .in   (rs1_out),
    .out  (rs1_reg_out)
 );
@@ -355,7 +347,7 @@ register RS1_Reg(
 register RS2_Reg_E(
 	.clk (clk),
    .rst (rst),
-   .load (load_rs2_reg_e),
+   .load (load_execute),
    .in   (rs2_out),
    .out  (rs2_reg_e_out)
 );
@@ -363,19 +355,46 @@ register RS2_Reg_E(
 register RS2_Reg_M(
 	.clk (clk),
    .rst (rst),
-   .load (load_rs2_reg_m),
+   .load (load_memory),
    .in   (rs2_reg_e_out),
    .out  (rs2_reg_m_out)
 );
 ////////////////////////////////////////////////
 
 /////////////Control////////////////////////////
+control_rom CONTROL(
+	.opcode (opcode),
+	.funct3 (funct3),
+	.funct7 (funct7),
+	.ctrl   (control_d)
+);
 
+control_signal_reg CS_REG_E(
+	.clk  (clk),
+	.rst  (rst),
+	.load (load_execute),
+	.in   (control_d),
+	.out  (control_e)
+);
+control_signal_reg CS_REG_M(
+	.clk  (clk),
+	.rst  (rst),
+	.load (load_memory),
+	.in   (control_e),
+	.out  (control_m)
+);
+control_signal_reg CS_REG_WB(
+	.clk  (clk),
+	.rst  (rst),
+	.load (load_writeback),
+	.in   (control_m),
+	.out  (control_wb)
+);
 ////////////////////////////////////////////////
 
 ///////////ALU & Muxes//////////////////////////
 alu ALU(
-	.aluop (aluop),
+	.aluop (control_e.aluop),
 	.a (alumux1_out),
 	.b (alumux2_out),
 	.f (alu_out)
@@ -384,7 +403,7 @@ alu ALU(
 mux2 ALUMUX1(
 	.clk,
 	.rst,
-	.select (alumux1_sel),
+	.select (control_e.alumux1_sel),
 	.in0 (rs1_reg_out),
 	.in1 (pc_e_out),
 	.out (alumux1_out)
@@ -393,7 +412,7 @@ mux2 ALUMUX1(
 mux6 ALUMUX2(
 	.clk,
 	.rst,
-	.select (alumux2_sel),
+	.select (control_e.alumux2_sel),
 	.in0 (i_imm_e),
 	.in1 (u_imm_e),
 	.in2 (b_imm_e),
@@ -406,7 +425,7 @@ mux6 ALUMUX2(
 register ALU_Reg_M(
 	.clk (clk),
    .rst (rst),
-   .load (load_alu_reg_m),
+   .load (load_memory),
    .in   (alu_out),
    .out  (alu_reg_m)
 );
@@ -414,7 +433,7 @@ register ALU_Reg_M(
 register ALU_Reg_WB(
 	.clk (clk),
    .rst (rst),
-   .load (load_alu_reg_wb),
+   .load (load_writeback),
    .in   (alu_reg_m),
    .out  (alu_reg_out)
 );
@@ -423,7 +442,7 @@ register ALU_Reg_WB(
 /////////////CMP & MUXES////////////////////////
 //DONT FORGET BR_EN_REG
 cmp CMP(
-	.cmpop (cmpop),
+	.cmpop (control_e.cmpop),
 	.a (rs1_reg_out),
 	.b (cmp_mux_out),
 	.f (br_en)
@@ -432,7 +451,7 @@ cmp CMP(
 mux2 CMPMUX(
 	.clk,
 	.rst,
-	.select (cmpmux_sel),
+	.select (control_e.cmpmux_sel),
 	.in0 (rs2_reg_e_out),
 	.in1 (i_imm_e),
 	.out (cmp_mux_out)
@@ -446,7 +465,7 @@ zext BR_EN_ZEXT(
 register CMP_Reg_M(
 	.clk (clk),
    .rst (rst),
-   .load (load_cmp_reg_m),
+   .load (load_memory),
    .in   (br_en_regmux),
    .out  (cmp_m_out)
 );
@@ -454,53 +473,61 @@ register CMP_Reg_M(
 register CMP_Reg_WB(
 	.clk (clk),
    .rst (rst),
-   .load (load_cmp_reg_wb),
+   .load (load_writeback),
    .in   (cmp_m_out),
    .out  (cmp_wb_out)
 );
 ////////////////////////////////////////////////
 
-////////////////Data Cache Mux//////////////////
+////////////////Data Cache Mux For Stores///////
 mux4 correctedpath(
   .clk,
   .rst,
-  .select (alu_reg_m[1:0]),
+  .select (control_m.store_type),
   .in0 (rs2_reg_m_out),
   .in1 (rs2_reg_m_out << 8),
   .in2 (rs2_reg_m_out << 16),
   .in3 (rs2_reg_m_out << 24),
-  .out (corrected)
+  .out (data_wdata)
+);
+
+register DCACHE_OUT(
+  .clk,
+  .rst,
+  .load (load_writeback),
+  .in   (data_rdata),
+  .out  (write_data)
 );
 ////////////////////////////////////////////////
 
 ////////LOADS///////////////////////////////////
 lh LH(
-	.in0 (ir_wb_out),
-	.select (alu_reg_out[1:0]),
+	.in0 (write_data),
+	.select (control_wb.store_type),
 	.out (lh_out)
 );
 
 lhu LHU(
-	.in0 (ir_wb_out),
-	.select (alu_reg_out[1:0]),
+	.in0 (write_data),
+	.select (control_wb.store_type),
 	.out (lhu_out)
 );
 
 lb LB(
-	.in0 (ir_wb_out),
-	.select (alu_reg_out[1:0]),
+	.in0 (write_data),
+	.select (control_wb.store_type),
 	.out (lb_out)
 );
 
 lbu LBU(
-	.in0 (ir_wb_out),
-	.select (alu_reg_out[1:0]),
+	.in0 (write_data),
+	.select (control_wb.store_type),
 	.out (lbu_out)
 );
 
 lw LW(
-  .in0 (ir_wb_out),
-  .select (alu_reg_out[1:0]),
+  .in0 (write_data),
+  .select (control_wb.store_type),
   .out (lw_out)
 );
 ////////////////////////////////////////////////
