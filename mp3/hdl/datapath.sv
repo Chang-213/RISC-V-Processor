@@ -20,13 +20,13 @@ module datapath
 );
 
 //Stage Load Values
-logic load_decode = 1'b0;
-logic load_execute = 1'b0;
-logic load_memory = 1'b0;
-logic load_writeback = 1'b0;
+logic load_decode;
+logic load_execute;
+logic load_memory;
+logic load_writeback;
 
 //PC values
-logic load_pc;
+logic load_pc = 1'b1;
 logic [1:0] pcmux_sel_m;
 rv32i_word pc_out;
 rv32i_word pc_d_out;
@@ -38,21 +38,38 @@ rv32i_word pcmux_out;
 
 //IR values
 logic [2:0] funct3;
+logic [2:0] funct3_d;
 logic [6:0] funct7;
+logic [6:0] funct7_d;
 rv32i_opcode opcode;
+rv32i_opcode opcode_d;
+
 logic [4:0] rs1;
+logic [4:0] rs1_d;
 logic [4:0] rs2;
+logic [4:0] rs2_d;
 
 rv32i_reg rd;
+rv32i_reg rd_d;
+rv32i_reg rd_e;
+rv32i_reg rd_m;
+rv32i_reg rd_wb;
 rv32i_word i_imm;
+rv32i_word i_imm_d;
 rv32i_word i_imm_e;
 rv32i_word u_imm;
+rv32i_word u_imm_d;
 rv32i_word u_imm_e;
+rv32i_word u_imm_m;
+rv32i_word u_imm_wb;
 rv32i_word b_imm;
+rv32i_word b_imm_d;
 rv32i_word b_imm_e;
 rv32i_word s_imm;
+rv32i_word s_imm_d;
 rv32i_word s_imm_e;
 rv32i_word j_imm;
+rv32i_word j_imm_d;
 rv32i_word j_imm_e;
 rv32i_word ir_d_out;
 rv32i_word ir_e_out;
@@ -106,7 +123,7 @@ assign data_read = control_m.mem_read;
 assign data_write = control_m.mem_write;
 assign data_mbe = 4'b1111;
 assign data_addr = alu_reg_m;
-
+assign opcode_d = rv32i_opcode'(ir_d_out[6:0]);
 
 //////////////////PC Initial signals///////////
 always_comb
@@ -121,17 +138,17 @@ begin
 		end
 end
 
-always_comb
-begin
-	if(inst_resp == 1 && !load_decode && !load_execute && !load_memory && !load_writeback)
-		begin
-		   load_pc = 1'b1;
-		end
-	else
-		begin
-			load_pc = control_d.load_pc;
-		end
-end
+//always_comb
+//begin
+//	if(inst_resp == 1 && !load_decode && !load_execute && !load_memory && !load_writeback)
+//		begin
+//		   load_pc = 1'b1;
+//		end
+//	else
+//		begin
+//			load_pc = control_d.load_pc;
+//		end
+//end
 //////////////////////////////////////////////
 
 ////////////////Stage Transitions/////////////
@@ -147,7 +164,7 @@ end
 //assign load_execute = !data_read & !data_write & inst_resp & !load_decode;  
 //assign load_memory = !data_read & !data_write & data_resp !load_execute;
 //assign load_writeback = data_resp & !load_memory;
-stage STAGE(
+stage_decode STAGE_DECODE(
 	.clk					(clk),
 	.rst					(rst),
 	.inst_resp			(inst_resp),
@@ -159,6 +176,33 @@ stage STAGE(
 	.load_memory		(load_memory),
 	.load_writeback	(load_writeback)
 );
+//stage_execute STAGE_EXECUTE(
+//	.clk					(clk),
+//	.rst					(rst),
+//	.inst_resp			(inst_resp),
+//	.data_resp			(data_resp),
+//	.data_read			(data_read),
+//	.data_write			(data_write),
+//	.load_execute		(load_execute)
+//);
+//stage_memory STAGE_MEMORY(
+//	.clk					(clk),
+//	.rst					(rst),
+//	.inst_resp			(inst_resp),
+//	.data_resp			(data_resp),
+//	.data_read			(data_read),
+//	.data_write			(data_write),
+//	.load_memory		(load_memory)
+//);
+//stage_writeback STAGE_WRITEBACK(
+//	.clk					(clk),
+//	.rst					(rst),
+//	.inst_resp			(inst_resp),
+//	.data_resp			(data_resp),
+//	.data_read			(data_read),
+//	.data_write			(data_write),
+//	.load_writeback		(load_writeback)
+//);
 //////////////////////////////////////////////
 
 //PC AND PCMUX AND PCREG///////////////////////
@@ -217,8 +261,8 @@ register PC_Reg_WB(
 ir IR(
 	.clk (clk),
 	.rst (rst),
-	.load (load_decode),
-	.in (ir_d_out),
+	.load (1'b1),
+	.in (inst_rdata),
 	.funct3 (funct3),
 	.funct7 (funct7),
 	.opcode (opcode),
@@ -230,6 +274,78 @@ ir IR(
 	.rs1 (rs1),
 	.rs2 (rs2),
 	.rd (rd)
+);
+
+register #(5) RS1_D(
+	.clk (clk),
+   .rst (rst),
+   .load (load_decode),
+   .in   (rs1),
+   .out  (rs1_d)
+);
+
+register #(5) RS2_D(
+	.clk (clk),
+   .rst (rst),
+   .load (load_decode),
+   .in   (rs2),
+   .out  (rs2_d)
+);
+
+register #(3) FUNCT3_D(
+	.clk (clk),
+   .rst (rst),
+   .load (load_decode),
+   .in   (funct3),
+   .out  (funct3_d)
+);
+
+register #(7) FUNCT7_D(
+	.clk (clk),
+   .rst (rst),
+   .load (load_decode),
+   .in   (funct7),
+   .out  (funct7_d)
+);
+
+//register #(7) OPCODE_D(
+//	.clk (clk),
+//   .rst (rst),
+//   .load (load_decode),
+//   .in   (inst_rdata[6:0]),
+//   .out  (opcode_d)
+//);
+
+register #(5) RD_D(
+	.clk (clk),
+   .rst (rst),
+   .load (load_decode),
+   .in   (rd),
+   .out  (rd_d)
+);
+
+register #(5) RD_E(
+	.clk (clk),
+   .rst (rst),
+   .load (load_execute),
+   .in   (rd_d),
+   .out  (rd_e)
+);
+
+register #(5) RD_M(
+	.clk (clk),
+   .rst (rst),
+   .load (load_memory),
+   .in   (rd_e),
+   .out  (rd_m)
+);
+
+register #(5) RD_WB(
+	.clk (clk),
+   .rst (rst),
+   .load (load_writeback),
+   .in   (rd_m),
+   .out  (rd_wb)
 );
 
 register IR_Reg_D(
@@ -264,43 +380,99 @@ register IR_Reg_WB(
    .out  (ir_wb_out)
 );
 
+register IR_Reg_D_UIMM(
+	.clk (clk),
+   .rst (rst),
+   .load (load_decode),
+   .in   (u_imm),
+   .out  (u_imm_d)
+);
+
 register IR_Reg_E_UIMM(
 	.clk (clk),
    .rst (rst),
    .load (load_execute),
-   .in   (u_imm),
+   .in   (u_imm_d),
    .out  (u_imm_e)
+);
+
+register IR_Reg_M_UIMM(
+	.clk (clk),
+   .rst (rst),
+   .load (load_memory),
+   .in   (u_imm_e),
+   .out  (u_imm_m)
+);
+
+register IR_Reg_WB_UIMM(
+	.clk (clk),
+   .rst (rst),
+   .load (load_writeback),
+   .in   (u_imm_m),
+   .out  (u_imm_wb)
+);
+
+register IR_Reg_E_ID_IMM(
+	.clk (clk),
+   .rst (rst),
+   .load (load_decode),
+   .in   (i_imm),
+   .out  (i_imm_d)
 );
 
 register IR_Reg_E_IIMM(
 	.clk (clk),
    .rst (rst),
    .load (load_execute),
-   .in   (i_imm),
+   .in   (i_imm_d),
    .out  (i_imm_e)
+);
+
+register IR_Reg_D_BIMM(
+	.clk (clk),
+   .rst (rst),
+   .load (load_decode),
+   .in   (b_imm),
+   .out  (b_imm_d)
 );
 
 register IR_Reg_E_BIMM(
 	.clk (clk),
    .rst (rst),
    .load (load_execute),
-   .in   (b_imm),
+   .in   (b_imm_d),
    .out  (b_imm_e)
+);
+
+register IR_Reg_D_SIMM(
+	.clk (clk),
+   .rst (rst),
+   .load (load_decode),
+   .in   (s_imm),
+   .out  (s_imm_d)
 );
 
 register IR_Reg_E_SIMM(
 	.clk (clk),
    .rst (rst),
    .load (load_execute),
-   .in   (s_imm),
+   .in   (s_imm_d),
    .out  (s_imm_e)
+);
+
+register IR_Reg_D_JIMM(
+	.clk (clk),
+   .rst (rst),
+   .load (load_decode),
+   .in   (j_imm),
+   .out  (j_imm_d)
 );
 
 register IR_Reg_E_JIMM(
 	.clk (clk),
    .rst (rst),
    .load (load_execute),
-   .in   (j_imm),
+   .in   (j_imm_d),
    .out  (j_imm_e)
 );
 ////////////////////////////////////////////////
@@ -309,11 +481,11 @@ register IR_Reg_E_JIMM(
 regfile regfile(
 	.clk,
 	.rst,
-	.load (control_d.load_regfile),
+	.load (control_wb.load_regfile),
 	.in (regfilemux_out),
-	.src_a (rs1),
-	.src_b (rs2),
-	.dest (rd),
+	.src_a (rs1_d),
+	.src_b (rs2_d),
+	.dest (rd_wb),
 	.reg_a (rs1_out),
 	.reg_b (rs2_out)
 );
@@ -326,7 +498,7 @@ mux9 REGMUX(
 	.select (control_wb.regfilemux_sel),
 	.in0 (alu_reg_out),
 	.in1 (cmp_wb_out),
-	.in2 (u_imm),
+	.in2 (u_imm_wb),
 	.in3 (lw_out),	//lw
 	.in4 (pc_wb_out),
 	.in5 (lb_out),	//lb
@@ -363,9 +535,9 @@ register RS2_Reg_M(
 
 /////////////Control////////////////////////////
 control_rom CONTROL(
-	.opcode (opcode),
-	.funct3 (funct3),
-	.funct7 (funct7),
+	.opcode (opcode_d),
+	.funct3 (funct3_d),
+	.funct7 (funct7_d),
 	.ctrl   (control_d)
 );
 

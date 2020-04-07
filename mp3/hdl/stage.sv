@@ -1,5 +1,3 @@
-import rv32i_types::*;
-
 module stage
 (
     input clk,
@@ -8,64 +6,85 @@ module stage
 	 input data_resp,
 	 input data_read,
 	 input data_write,
-    output load_decode,
-    output load_execute,
-    output load_memory,
-	 output load_writeback
+    output logic load_decode,
+    output logic load_execute,
+    output logic load_memory,
+	 output logic load_writeback
 );
 
-logic data;
+logic data_decode;
+logic data_execute;
+logic data_memory;
+logic data_writeback;
 
-initial
-begin
-	data = 1'b0;
-end
+//initial
+//begin
+//	data_decode = 1'b0;
+//	data_execute = 1'b0;
+//	data_memory = 1'b0;
+//	data_writeback = 1'b0;
+//end
 
 always_ff @(posedge clk)
 begin
     if (rst)
     begin
-        load_decode <= data;
-		load_execute <= data;
-		load_memory <= data;
-		load_writeback <= data;
+      data_decode <= 1'b0;
+		data_execute <= 1'b0;
+		data_memory <= 1'b0;
+		data_writeback <= 1'b0;
     end
-    else if (inst_resp & !data_read & !data_write)
+    else if (inst_resp & !load_decode & !load_execute & !load_memory & !load_writeback)
     begin
-        load_decode <= 1'b1;
-		load_execute <= 1'b0;
-		load_memory <= 1'b0;
-		load_writeback <= 1'b0;
+      data_decode <= 1'b1;
+		data_execute <= 1'b0;
+		data_memory <= 1'b0;
+		data_writeback <= 1'b0;
     end
-    else if (!data_read & !data_write & !inst_resp)
+	 else if (inst_resp & !load_decode & !load_execute & !load_memory & load_writeback)
     begin
-        load_decode <= 1'b0;
-		load_execute <= 1'b1;
-		load_memory <= 1'b0;
-		load_writeback <= 1'b0;
+      data_decode <= 1'b1;
+		data_execute <= 1'b0;
+		data_memory <= 1'b0;
+		data_writeback <= 1'b0;
     end
-	else if (data_resp & !data_read & !data_write)
+    else if (load_decode & !load_execute & !load_memory & !load_writeback)
     begin
-        load_decode <= 1'b0;
-		load_execute <= 1'b0;
-		load_memory <= 1'b1;
-		load_writeback <= 1'b0;
+      data_decode <= 1'b0;
+		data_execute <= 1'b1;
+		data_memory <= 1'b0;
+		data_writeback <= 1'b0;
     end
-	else if (!data_read & !data_write & !data_resp)
+	else if (!load_decode & load_execute & !load_memory & !load_writeback)
     begin
-        load_decode <= 1'b0;
-		load_execute <= 1'b0;
-		load_memory <= 1'b0;
-		load_writeback <= 1'b1;
+      data_decode <= 1'b0;
+		data_execute <= 1'b0;
+		data_memory <= 1'b1;
+		data_writeback <= 1'b0;
+    end
+	else if (!load_decode & !load_execute & load_memory & !load_writeback)
+    begin
+      data_decode <= 1'b0;
+		data_execute <= 1'b0;
+		data_memory <= 1'b0;
+		data_writeback <= 1'b1;
     end
 	else
 	begin
-		load_decode <= 1'b0;
-		load_execute <= 1'b0;
-		load_memory <= 1'b0;
-		load_writeback <= 1'b0;
+		data_decode <= 1'b0;
+		data_execute <= 1'b0;
+		data_memory <= 1'b0;
+		data_writeback <= 1'b0;
 	end
 end
+
+always_comb
+	begin
+		load_decode = data_decode;
+		load_execute = data_execute;
+		load_memory = data_memory;
+		load_writeback = data_writeback;
+	end
 
 endmodule : stage
 

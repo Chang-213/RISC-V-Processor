@@ -71,4 +71,17 @@ set_global_assignment -name SYSTEMVERILOG_FILE hdl/cpu.sv
 set_global_assignment -name SYSTEMVERILOG_FILE hdl/control.sv
 set_global_assignment -name SYSTEMVERILOG_FILE hdl/cmp.sv
 set_global_assignment -name SYSTEMVERILOG_FILE hdl/alu.sv
+set_global_assignment -name EDA_TEST_BENCH_ENABLE_STATUS TEST_BENCH_MODE -section_id eda_simulation
+set_global_assignment -name EDA_NATIVELINK_SIMULATION_TEST_BENCH mp3_tb -section_id eda_simulation
+set_global_assignment -name EDA_TEST_BENCH_NAME mp3_tb -section_id eda_simulation
+set_global_assignment -name EDA_DESIGN_INSTANCE_NAME NA -section_id mp3_tb
+set_global_assignment -name EDA_TEST_BENCH_MODULE_NAME mp3_tb -section_id mp3_tb
+set_global_assignment -name EDA_TEST_BENCH_FILE hvl/magic_dual_port.sv -section_id mp3_tb
+set_global_assignment -name EDA_TEST_BENCH_FILE hvl/param_memory.sv -section_id mp3_tb
+set_global_assignment -name EDA_TEST_BENCH_FILE hvl/rvfi_itf.sv -section_id mp3_tb
+set_global_assignment -name EDA_TEST_BENCH_FILE hvl/rvfimon.v -section_id mp3_tb
+set_global_assignment -name EDA_TEST_BENCH_FILE hvl/shadow_memory.sv -section_id mp3_tb
+set_global_assignment -name EDA_TEST_BENCH_FILE hvl/source_tb.sv -section_id mp3_tb
+set_global_assignment -name EDA_TEST_BENCH_FILE hvl/tb_itf.sv -section_id mp3_tb
+set_global_assignment -name EDA_TEST_BENCH_FILE hvl/top.sv -section_id mp3_tb
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

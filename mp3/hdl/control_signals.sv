@@ -9,7 +9,7 @@ module control_signal_reg #(parameter width = 32)
     output rv32i_control_word out
 );
 
-logic [width-1:0] data = 1'b0;
+rv32i_control_word data;
 
 always_ff @(posedge clk)
 begin

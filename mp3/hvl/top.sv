@@ -15,12 +15,14 @@ source_tb tb(
     .rvfi(rvfi)
 );
 /****************************** End do not touch *****************************/
-
+logic clk;
+assign clk = itf.clk;
 /************************ Signals necessary for monitor **********************/
 // This section not required until CP3
 
 assign rvfi.commit = 0; // Set high when a valid instruction is modifying regfile or PC
-assign rvfi.halt = 0;   // Set high when you detect an infinite loop
+// Set high when you detect an infinite loop
+assign rvfi.halt = dut.datapath.load_pc & (dut.datapath.pc_out == dut.datapath.pcmux_out);
 initial rvfi.order = 0;
 always @(posedge itf.clk iff rvfi.commit) rvfi.order <= rvfi.order + 1; // Modify for OoO
 /**************************** End RVFIMON signals ****************************/
@@ -30,7 +32,7 @@ always @(posedge itf.clk iff rvfi.commit) rvfi.order <= rvfi.order + 1; // Modif
 /*********************** End Shadow Memory Assignments ***********************/
 
 // Set this to the proper value
-assign itf.registers = '{default: '0};
+assign itf.registers = dut.datapath.regfile.data;
 
 /*********************** Instantiate your design here ************************/
 mp3 dut(
