@@ -27,6 +27,7 @@ logic load_writeback;
 
 //PC values
 logic load_pc = 1'b1;
+logic [1:0] branch;
 logic [1:0] pcmux_sel_m;
 rv32i_word pc_out;
 rv32i_word pc_d_out;
@@ -86,6 +87,7 @@ rv32i_word rs2_reg_m_out;
 rv32i_word regfilemux_out;
 
 //ALU values
+rv32i_word alu_mux_pc_out;
 rv32i_word alumux1_out;
 rv32i_word alumux2_out;
 rv32i_word alu_out;
@@ -100,6 +102,7 @@ rv32i_control_word control_wb;
 
 //CMP values
 logic br_en;
+logic br_en_m;
 rv32i_word cmp_mux_out;
 rv32i_word br_en_regmux;
 rv32i_word cmp_m_out;
@@ -123,20 +126,21 @@ assign data_read = control_m.mem_read;
 assign data_write = control_m.mem_write;
 assign data_mbe = 4'b1111;
 assign data_addr = alu_reg_m;
-assign opcode_d = rv32i_opcode'(ir_d_out[6:0]);
+//assign opcode_d = rv32i_opcode'(ir_d_out[6:0]);
+assign pcmux_sel_m = branch;
 
 //////////////////PC Initial signals///////////
-always_comb
-begin
-	if(load_memory == 1)
-		begin
-		   pcmux_sel_m = control_m.pcmux_sel;
-		end
-	else
-		begin
-			pcmux_sel_m = 2'b00;
-		end
-end
+//always_comb
+//begin
+//	if(load_memory == 1)
+//		begin
+//		   pcmux_sel_m = control_m.pcmux_sel;
+//		end
+//	else
+//		begin
+//			pcmux_sel_m = 2'b00;
+//		end
+//end
 
 //always_comb
 //begin
@@ -214,13 +218,14 @@ pc_register PC(
     .out  (pc_out)
 );
 
-mux3 PCMUX(
+mux4 PCMUX(
 	.clk,
 	.rst,
 	.select (pcmux_sel_m),
 	.in0 (pc_out + 32'h00000004),
-	.in1 (alu_reg_m),
-	.in2 ({alu_reg_m[31:1], 1'b0}),
+	.in1 (alu_reg_m),						//JAL
+	.in2 ({alu_reg_m[31:1], 1'b0}),	//JALR
+	.in3 (alu_reg_m),						//BR
 	.out (pcmux_out)
 );
 
@@ -252,7 +257,7 @@ register PC_Reg_WB(
 	.clk (clk),
    .rst (rst),
    .load (load_writeback),
-   .in   (pc_m_out + 32'h00000004),
+   .in   (pc_m_out),
    .out  (pc_wb_out)
 );
 ////////////////////////////////////////////////
@@ -308,13 +313,13 @@ register #(7) FUNCT7_D(
    .out  (funct7_d)
 );
 
-//register #(7) OPCODE_D(
-//	.clk (clk),
-//   .rst (rst),
-//   .load (load_decode),
-//   .in   (inst_rdata[6:0]),
-//   .out  (opcode_d)
-//);
+opcode_reg OPCODE_D(
+	.clk (clk),
+   .rst (rst),
+   .load (load_decode),
+   .in   (opcode),
+   .out  (opcode_d)
+);
 
 register #(5) RD_D(
 	.clk (clk),
@@ -572,12 +577,20 @@ alu ALU(
 	.f (alu_out)
 );
 
+always_comb
+begin
+	if(control_e.opcode == op_br)
+		alu_mux_pc_out = pc_wb_out;
+	else
+		alu_mux_pc_out = pc_e_out;
+end
+
 mux2 ALUMUX1(
 	.clk,
 	.rst,
 	.select (control_e.alumux1_sel),
 	.in0 (rs1_reg_out),
-	.in1 (pc_e_out),
+	.in1 (alu_mux_pc_out),
 	.out (alumux1_out)
 );
 
@@ -633,6 +646,28 @@ zext BR_EN_ZEXT(
 	.in (br_en),
 	.out (br_en_regmux)
 );
+
+register #(1) CMP_Reg_M_NO_EXT(
+	.clk (clk),
+   .rst (rst),
+   .load (load_memory),
+   .in   (br_en),
+   .out  (br_en_m)
+);
+
+always_comb
+	begin
+		if(rst)
+			branch = 2'b00;
+		else if (br_en_m == 1 && control_m.opcode == op_br)
+			branch = 2'b11;
+		else if (control_m.opcode == op_jal)
+			branch = 2'b01;
+		else if (control_m.opcode == op_jalr)
+			branch = 2'b10;
+		else
+			branch = 2'b00;
+	end
 
 register CMP_Reg_M(
 	.clk (clk),
