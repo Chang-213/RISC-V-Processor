@@ -38,17 +38,37 @@ assign itf.registers = dut.datapath.regfile.data;
 mp3 dut(
 	.clk 			 (itf.clk),
 	.rst 			 (itf.rst),
-	.inst_resp		 (itf.inst_resp),
-	.inst_rdata		 (itf.inst_rdata),
-	.data_resp		 (itf.data_resp),
-	.data_rdata		 (itf.data_rdata),
-	.inst_read		 (itf.inst_read),
-	.inst_addr		 (itf.inst_addr),
-	.data_read		 (itf.data_read),
-	.data_write		 (itf.data_write),
-	.data_mbe		 (itf.data_mbe),
-	.data_addr		 (itf.data_addr),
-	.data_wdata		 (itf.data_wdata)
+	.pmem_read		 (itf.mem_read),
+	.pmem_write		 (itf.mem_write),
+	.pmem_addr		 (itf.mem_addr),
+	.pmem_wdata		 (itf.mem_wdata),
+	.pmem_resp		 (itf.mem_resp),
+	.pmem_rdata		 (itf.mem_rdata)
+);
+
+shadow_memory sm_data(
+	.clk 			(itf.clk),
+	.rst 			(itf.rst),
+	.read	 		(dut.d_mem_read),
+	.write	 		(dut.d_mem_write),
+	.addr	 		(dut.d_mem_address),
+	.mbe	 		(dut.d_mem_byte_enable),
+	.wdata	 		(dut.d_mem_wdata),
+	.resp	 		(dut.d_mem_resp),
+	.rdata	 		(dut.d_mem_rdata),
+	.error			(itf.data_sm_error)
+);
+
+shadow_memory sm_inst(
+	.clk 			(itf.clk),
+	.rst 			(itf.rst),
+	.read	 		(dut.i_mem_read),
+	.write	 		(1'b0),
+	.addr	 		(dut.i_mem_address),
+	.wdata	 		(1'b0),
+	.resp	 		(dut.i_mem_resp),
+	.rdata	 		(dut.i_mem_rdata),
+	.error			(itf.inst_sm_error)
 );
 /***************************** End Instantiation *****************************/
 

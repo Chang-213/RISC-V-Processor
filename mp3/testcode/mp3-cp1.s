@@ -6,6 +6,8 @@ _start:
     lw x1, %lo(NEGTWO)(x0)
     lw x2, %lo(TWO)(x0)
     lw x4, %lo(ONE)(x0)
+	lw x8, %lo(EIGHT)(x0)
+	nop
     nop
     nop
     nop
@@ -28,6 +30,7 @@ ONE:    .word 0x00000001
 TWO:    .word 0x00000002
 NEGTWO: .word 0xFFFFFFFE
 TEMP1:  .word 0x00000001
+EIGHT:  .word 0x00000005
 GOOD:   .word 0x600D600D
 BADD:   .word 0xBADDBADD
 
@@ -55,7 +58,7 @@ LOOP:
     nop
     nop
     nop
-    blt x0, x1, DONEa
+    blt x8, x1, DONEa
     nop
     nop
     nop
