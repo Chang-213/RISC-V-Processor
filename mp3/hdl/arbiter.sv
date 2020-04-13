@@ -1,37 +1,38 @@
+import rv32i_types::*;
 module arbiter
 (
     input clk,
     input rst,
 	 
 	 //from mainmem/L2
-	 input [255:0] rdata_L2,
-	 input resp_L2,
+	 input logic [255:0] rdata_L2,
+	 input logic resp_L2,
 	 
 	 //from I-cache
-	 input read_I,
+	 input logic read_I,
 	 input rv32i_word addr_I,
-	 input write_I,
-	 input [255:0] wdata_I,
+	 input logic write_I,
+	 input logic [255:0] wdata_I,
 	 
 	 //from D-cache
-	 input read_D,
+	 input logic read_D,
 	 input rv32i_word addr_D,
-	 input write_D,
-	 input [255:0] wdata_D,
+	 input logic write_D,
+	 input logic [255:0] wdata_D,
 	 
 	 //to mainmem/L2
-	 output read_L2,
-	 output write_L2,
+	 output logic read_L2,
+	 output logic write_L2,
 	 output rv32i_word addr_L2,
-	 output [255:0] wdata_L2,
+	 output logic [255:0] wdata_L2,
 	 
 	 //to I-cache
-	 output [255:0] rdata_I,
-	 output arb_resp_I,
+	 output logic [255:0] rdata_I,
+	 output logic arb_resp_I,
 	 
 	 //to D-cache
-	 output [255:0] rdata_D,
-	 output arb_resp_D
+	 output logic [255:0] rdata_D,
+	 output logic arb_resp_D
 	 
 );
 

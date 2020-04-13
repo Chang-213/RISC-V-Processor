@@ -1,3 +1,4 @@
+
 module cache_datapath #(
     parameter s_offset = 5,
     parameter s_index  = 3,
@@ -63,10 +64,10 @@ module cache_datapath #(
 	 
 	 //misc
 	 logic [23:0] tag_out;
-	 logic [2:0] pmem_wdata_select;
+	 //logic [2:0] pmem_wdata_select;
 	 logic general_hit;
 	 logic last;
-	 assign pmem_wdata_select = {lru_out, hit1, hit0};
+	 //assign pmem_wdata_select = {lru_out, hit1, hit0};
 	 
 	 //assign array values
 	 assign array_read = (read_array || write_array);
@@ -129,14 +130,12 @@ module cache_datapath #(
 	 );
 	 
 	 
-	 mux3bit PMEM_WDATA(
+	 mux2bit #(256) PMEM_WDATA(
 		.clk (clk),
 		.rst (rst),
-		.select (pmem_wdata_select),
-		.in0 (data0_out),
+		.select (lru_out),
+		.in0 (data1_out),
 		.in1 (data0_out),
-		.in2 (data0_out),
-		.in3 (data1_out),
 		.out (pmem_wdata)
 	 );
 	 

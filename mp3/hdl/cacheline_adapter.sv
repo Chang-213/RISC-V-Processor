@@ -1,3 +1,4 @@
+
 module cacheline_adapter
 (
     input clk,
@@ -7,8 +8,8 @@ module cacheline_adapter
     input logic [255:0] line_i,
     output logic [255:0] line_o,
     input logic [31:0] address_i,
-    input read_i,
-    input write_i,
+    input logic read_i,
+    input logic write_i,
     output logic resp_o,
 
     // Port to memory
@@ -17,7 +18,7 @@ module cacheline_adapter
     output logic [31:0] address_o,
     output logic read_o,
     output logic write_o,
-    input resp_i
+    input logic resp_i
 );
 
 logic [63:0] burst;

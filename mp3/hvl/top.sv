@@ -29,11 +29,22 @@ always @(posedge itf.clk iff rvfi.commit) rvfi.order <= rvfi.order + 1; // Modif
 
 /********************* Assign Shadow Memory Signals Here *********************/
 // This section not required until CP2
+assign itf.inst_read = dut.i_mem_read;
+assign itf.inst_addr = dut.i_mem_address;
+assign itf.inst_rdata = dut.i_mem_rdata;		//problem
+assign itf.inst_resp = dut.i_mem_resp;			//problem
+assign itf.data_read = dut.d_mem_read;
+assign itf.data_write = dut.d_mem_write;
+assign itf.data_addr = dut.d_mem_address;
+assign itf.data_rdata = dut.d_mem_rdata;		//problem
+assign itf.data_wdata = dut.d_mem_wdata;
+assign itf.data_resp = dut.d_mem_resp;			//problem
+assign itf.data_mbe = dut.d_mem_byte_enable;
+
 /*********************** End Shadow Memory Assignments ***********************/
 
 // Set this to the proper value
 assign itf.registers = dut.datapath.regfile.data;
-
 /*********************** Instantiate your design here ************************/
 mp3 dut(
 	.clk 			 (itf.clk),
@@ -46,30 +57,6 @@ mp3 dut(
 	.pmem_rdata		 (itf.mem_rdata)
 );
 
-shadow_memory sm_data(
-	.clk 			(itf.clk),
-	.rst 			(itf.rst),
-	.read	 		(dut.d_mem_read),
-	.write	 		(dut.d_mem_write),
-	.addr	 		(dut.d_mem_address),
-	.mbe	 		(dut.d_mem_byte_enable),
-	.wdata	 		(dut.d_mem_wdata),
-	.resp	 		(dut.d_mem_resp),
-	.rdata	 		(dut.d_mem_rdata),
-	.error			(itf.data_sm_error)
-);
-
-shadow_memory sm_inst(
-	.clk 			(itf.clk),
-	.rst 			(itf.rst),
-	.read	 		(dut.i_mem_read),
-	.write	 		(1'b0),
-	.addr	 		(dut.i_mem_address),
-	.wdata	 		(1'b0),
-	.resp	 		(dut.i_mem_resp),
-	.rdata	 		(dut.i_mem_rdata),
-	.error			(itf.inst_sm_error)
-);
 /***************************** End Instantiation *****************************/
 
 endmodule

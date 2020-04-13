@@ -40,12 +40,13 @@ begin
     end
 end
 
-always_comb
-begin
-	if (read)
-		_dataout = (load  & (rindex == windex)) ? datain : data[rindex];
-	else
-		_dataout = dataout;
-end
+//always_comb
+//begin
+//_dataout = dataout;
+//	if (read)
+//		_dataout = (load  & (rindex == windex)) ? datain : data[rindex];
+//	else if (~read)
+//		_dataout = dataout;
+//end
 
 endmodule : array
