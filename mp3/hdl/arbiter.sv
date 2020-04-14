@@ -38,13 +38,11 @@ module arbiter
 
 logic instr_access;
 logic data_access;
-
 assign instr_access = read_I | write_I;
 assign data_access = read_D | write_D;
 
 enum int unsigned {
     /* List of states */
-	 RESET,
 	 READY,
 	 ACCESS_I_CACHE,
 	 ACCESS_D_CACHE
@@ -61,9 +59,6 @@ begin : state_actions
 	arb_resp_I = 0;
 	arb_resp_D = 0;
 	unique case (state)
-	RESET:
-		begin
-		end
 	READY:
 		begin
 		end
@@ -95,10 +90,6 @@ always_comb
 begin : next
 	next_state = state;
 	unique case (state)
-	RESET:
-		begin
-			next_state = READY;
-		end
 	READY:
 		begin
 		if (instr_access)
@@ -128,7 +119,7 @@ end
 always_ff @(posedge clk)
 begin
 	if (rst)
-		state <= RESET;
+		state <= READY;
 	else
 		state <= next_state;
 end

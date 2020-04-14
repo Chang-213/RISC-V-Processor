@@ -80,12 +80,12 @@ begin : state_actions
 	ACCESS:
 	begin
 		lru_load = 1;	//evict LRU
-		if(read_array && (hit0 || hit1))
+		if(read_array && (hit0 || hit1) && valid_bit)
 		begin
 			//lru_load = 1;	//evict LRU 
 			mem_resp = 1;	//set cache to ready
 		end
-		else if (write_array && (hit0 || hit1))
+		else if (write_array && (hit0 || hit1) && valid_bit)
 		begin
 			//lru_load = 1;	//evict LRU
 			dirty_select = 1; //set dirty bit to 1
@@ -148,9 +148,9 @@ begin : next_state
 //		end
 	ACCESS:
 		begin
-		if(valid_bit && !hit1 && !hit0 && !dirty_bit)	//cache miss and clean
+		if((read_array || write_array) && !hit1 && !hit0 && !dirty_bit)	//cache miss and clean
 			next_states = ALLOCATE;
-		else if (valid_bit && !hit1 && !hit0 && dirty_bit)  //cache miss and dirty
+		else if ((read_array || write_array) && !hit1 && !hit0 && dirty_bit)  //cache miss and dirty
 			next_states = WRITE_BACK;
 		else	//either read or write and cache hit
 			next_states = ACCESS;

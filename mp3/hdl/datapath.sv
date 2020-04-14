@@ -26,7 +26,7 @@ logic load_memory;
 logic load_writeback;
 
 //PC values
-logic load_pc = 1'b1;
+logic load_pc = 0;
 logic [1:0] branch;
 logic [1:0] pcmux_sel_m;
 rv32i_word pc_out;
@@ -213,7 +213,7 @@ stage_decode STAGE_DECODE(
 pc_register PC(
     .clk  (clk),
     .rst (rst),
-    .load (load_pc),
+    .load (inst_resp),
     .in   (pcmux_out),
     .out  (pc_out)
 );
@@ -579,9 +579,6 @@ alu ALU(
 
 always_comb
 begin
-	if(control_e.opcode == op_br)
-		alu_mux_pc_out = pc_wb_out;
-	else
 		alu_mux_pc_out = pc_e_out;
 end
 

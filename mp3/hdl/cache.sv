@@ -61,6 +61,7 @@ module cache #(
 	logic valid_bit;
 	logic hit0;
 	logic hit1;
+	
 
 	//assign read_array = mem_read;
 	//assign write_array = mem_write;

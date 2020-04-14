@@ -59,7 +59,7 @@ task automatic memread(input logic [ADDRLEN-1:0] addr);
     pageno = _pageno;
     fork : f
         begin : error_check
-            // This process simply runs some assertions at each 
+            // This process simply runs some assertions at each
             // new cycle, asserting error and ending the read if any assertion
             // fails
             forever @(itf.mcb) begin
@@ -119,7 +119,7 @@ task automatic memwrite(input logic [31:0] addr);
 
     fork : f
         begin : error_check
-            // This process simply runs some assertions at each 
+            // This process simply runs some assertions at each
             // new cycle, asserting error and ending the read if any assertion
             // fails
             forever @(itf.mcb) begin
