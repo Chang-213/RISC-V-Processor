@@ -1,5 +1,5 @@
 
-module cache_control (
+module cache_control_data (
 	//Generic signals
 	input clk,
 	input rst,
@@ -43,6 +43,8 @@ enum int unsigned {
 	 ACCESS,
 	 WRITE_BACK,
 	 ALLOCATE
+	 //FINAL1	//used purely for 1 more cycle to loads
+	 //FINAL2
 	 
 //	 READ,
 //	 READ_MISS_LOAD,
@@ -122,6 +124,7 @@ begin : state_actions
 			valid_load1 = 1;	
 			tag_load1 = 1;	
 			dirty_load1 = 1;
+			//lru_load = 1;
 			end
 		else
 			begin
@@ -129,9 +132,20 @@ begin : state_actions
 			valid_load0 = 1;	
 			tag_load0 = 1;	
 			dirty_load0 = 1;
+			//lru_load = 1;
 			end
+		
 		end
-
+//	FINAL1:
+//		begin
+//		if(read_array)
+//			lru_load = 1;
+//		mem_resp = 1;
+//		end
+//	FINAL2:
+//		begin
+//		mem_resp = 1;
+//		end
 	endcase
 end
 
@@ -169,6 +183,14 @@ begin : next_state
 		else
 			next_states = ALLOCATE;
 		end
+//	FINAL1:
+//		begin
+//		next_states = ACCESS;
+//		end
+//	FINAL2:
+//		begin
+//		next_states = ACCESS;
+//		end
 	endcase
 end
 
@@ -180,4 +202,4 @@ begin
 		state <= next_states;
 end
 
-endmodule : cache_control
+endmodule : cache_control_data

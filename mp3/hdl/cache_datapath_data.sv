@@ -1,5 +1,5 @@
 
-module cache_datapath #(
+module cache_datapath_data #(
     parameter s_offset = 5,
     parameter s_index  = 3,
     parameter s_tag    = 32 - s_offset - s_index,
@@ -275,4 +275,4 @@ module cache_datapath #(
 		.dataout (lru_out)
 	);
 
-endmodule : cache_datapath
+endmodule : cache_datapath_data

@@ -38,10 +38,10 @@ begin
             data[i] <= '0;
     end
     else begin
-        if (read)
-            for (int i = 0; i < s_mask; i++)
-                _dataout[8*i +: 8] <= (write_en[i] & (rindex == windex)) ?
-                                      datain[8*i +: 8] : data[rindex][8*i +: 8];
+//        if (read)
+//            for (int i = 0; i < s_mask; i++)
+//                _dataout[8*i +: 8] <= (write_en[i] & (rindex == windex)) ?
+//                                      datain[8*i +: 8] : data[rindex][8*i +: 8];
 
         for (int i = 0; i < s_mask; i++)
         begin
@@ -51,15 +51,15 @@ begin
     end
 end
 
-//always_comb
-//begin
-//	if (read)
-//		for (int i = 0; i < s_mask; i++)
-//			_dataout[8*i +: 8] = (write_en[i] & (rindex == windex)) ? datain[8*i +: 8] : data[rindex][8*i +: 8];       
-//	else
-//		for (int i = 0; i < s_mask; i++)
-//			_dataout[8*i +: 8] = dataout[8*i +: 8];
-//end
+always_comb
+begin
+	if (read)
+		for (int i = 0; i < s_mask; i++)
+			_dataout[8*i +: 8] = (write_en[i] & (rindex == windex)) ? datain[8*i +: 8] : data[rindex][8*i +: 8];       
+	else
+		for (int i = 0; i < s_mask; i++)
+			_dataout[8*i +: 8] = dataout[8*i +: 8];
+end
 
 endmodule : data_array
 

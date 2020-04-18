@@ -10,7 +10,7 @@ module datapath
 	 input [31:0] inst_rdata,
 	 input data_resp,
 	 input [31:0] data_rdata,
-	 output inst_read,
+	 output logic inst_read,
 	 output [31:0] inst_addr,
 	 output data_read,
 	 output data_write,
@@ -25,8 +25,11 @@ logic load_execute;
 logic load_memory;
 logic load_writeback;
 
+logic [31:0] d_addr_delay;
+
 //PC values
-logic load_pc = 0;
+logic load_pc;
+assign load_pc = inst_resp;
 logic [1:0] branch;
 logic [1:0] pcmux_sel_m;
 rv32i_word pc_out;
@@ -120,54 +123,42 @@ rv32i_word corrected;
 rv32i_word write_data;
 
 //load MAR signal
-assign inst_read = 1'b1;
+//assign inst_read = (control_e.mem_read & data_resp) | (~control_e.mem_read);
+always_comb
+begin
+	if(control_d.mem_read && control_e.mem_read && control_m.mem_read)
+		inst_read = 1'b1;
+	else
+		inst_read = (~control_e.mem_read);
+end
 assign inst_addr = pc_out;
-assign data_read = control_m.mem_read;
+assign data_read = control_m.mem_read;	//previously e
 assign data_write = control_m.mem_write;
 assign data_mbe = 4'b1111;
 assign data_addr = alu_reg_m;
+//always_comb
+//begin
+//	if(control_m.opcode == op_load)
+//		data_addr = alu_reg_m;
+//	else
+//		data_addr = alu_out;
+//end
+
 //assign opcode_d = rv32i_opcode'(ir_d_out[6:0]);
 assign pcmux_sel_m = branch;
 
-//////////////////PC Initial signals///////////
-//always_comb
-//begin
-//	if(load_memory == 1)
-//		begin
-//		   pcmux_sel_m = control_m.pcmux_sel;
-//		end
-//	else
-//		begin
-//			pcmux_sel_m = 2'b00;
-//		end
-//end
-
-//always_comb
-//begin
-//	if(inst_resp == 1 && !load_decode && !load_execute && !load_memory && !load_writeback)
-//		begin
-//		   load_pc = 1'b1;
-//		end
-//	else
-//		begin
-//			load_pc = control_d.load_pc;
-//		end
-//end
+//////////////////D_Cache_Delay///////////
+register data_addr_delay(
+	.clk (clk),
+   .rst (rst),
+   .load (!data_resp && load_memory),
+   .in   (alu_reg_m),
+   .out  (d_addr_delay)
+);
 //////////////////////////////////////////////
 
 ////////////////Stage Transitions/////////////
-//initial
-//begin
-//	load_decode = 1'b0;
-//	load_execute = 1'b0;
-//	load_memory = 1'b0;
-//	load_writeback = 1'b0;
-//end
-//
-//assign load_decode = inst_resp & !data_read & !data_write & !load_writeback; 
-//assign load_execute = !data_read & !data_write & inst_resp & !load_decode;  
-//assign load_memory = !data_read & !data_write & data_resp !load_execute;
-//assign load_writeback = data_resp & !load_memory;
+
 stage_decode STAGE_DECODE(
 	.clk					(clk),
 	.rst					(rst),
@@ -180,40 +171,14 @@ stage_decode STAGE_DECODE(
 	.load_memory		(load_memory),
 	.load_writeback	(load_writeback)
 );
-//stage_execute STAGE_EXECUTE(
-//	.clk					(clk),
-//	.rst					(rst),
-//	.inst_resp			(inst_resp),
-//	.data_resp			(data_resp),
-//	.data_read			(data_read),
-//	.data_write			(data_write),
-//	.load_execute		(load_execute)
-//);
-//stage_memory STAGE_MEMORY(
-//	.clk					(clk),
-//	.rst					(rst),
-//	.inst_resp			(inst_resp),
-//	.data_resp			(data_resp),
-//	.data_read			(data_read),
-//	.data_write			(data_write),
-//	.load_memory		(load_memory)
-//);
-//stage_writeback STAGE_WRITEBACK(
-//	.clk					(clk),
-//	.rst					(rst),
-//	.inst_resp			(inst_resp),
-//	.data_resp			(data_resp),
-//	.data_read			(data_read),
-//	.data_write			(data_write),
-//	.load_writeback		(load_writeback)
-//);
+
 //////////////////////////////////////////////
 
 //PC AND PCMUX AND PCREG///////////////////////
 pc_register PC(
     .clk  (clk),
     .rst (rst),
-    .load (inst_resp),
+    .load (load_pc ), //| (br_en_m == 1 && control_m.opcode == op_br)
     .in   (pcmux_out),
     .out  (pc_out)
 );
@@ -577,10 +542,11 @@ alu ALU(
 	.f (alu_out)
 );
 
-always_comb
-begin
-		alu_mux_pc_out = pc_e_out;
-end
+//always_comb
+//begin
+//		alu_mux_pc_out = pc_e_out;
+//end
+assign alu_mux_pc_out = pc_e_out;
 
 mux2 ALUMUX1(
 	.clk,
@@ -698,7 +664,7 @@ mux4 correctedpath(
 register DCACHE_OUT(
   .clk,
   .rst,
-  .load (load_writeback),
+  .load (1'b1), //formerly load_writeback
   .in   (data_rdata),
   .out  (write_data)
 );

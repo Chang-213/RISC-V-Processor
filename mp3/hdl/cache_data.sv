@@ -1,5 +1,5 @@
 
-module cache #(
+module cache_data #(
     parameter s_offset = 5,
     parameter s_index  = 3,
     parameter s_tag    = 32 - s_offset - s_index,
@@ -31,6 +31,8 @@ module cache #(
 	
 	
 );
+
+logic [31:0] mem_rdata_reg;
 
 //CACHE TO BUSLINE ADAPTER
 	 logic [255:0] mem_wdata256;
@@ -70,7 +72,15 @@ module cache #(
 	assign mem_byte_enable_bl = mem_byte_enable;
 	assign address = mem_address;
 	
-cache_control control
+register_comb mem_rdata_save(
+	.clk (clk),
+   .rst (rst),
+   .load (mem_resp),
+   .in   (mem_rdata_reg),
+   .out  (mem_rdata)
+);
+	
+cache_control_data control
 (
 	.clk (clk),
 	.rst (rst),
@@ -107,7 +117,7 @@ cache_control control
 	.dirty_load1 (dirty_load1)
 );
 
-cache_datapath datapath
+cache_datapath_data datapath
 (
 	.clk (clk),
 	.rst (rst),
@@ -143,10 +153,10 @@ bus_adapter bus_adapter
 	.mem_wdata256 (mem_wdata256),
 	.mem_rdata256 (pmem_wdata),
 	.mem_wdata (mem_wdata),
-	.mem_rdata (mem_rdata),
+	.mem_rdata (mem_rdata_reg),
 	.mem_byte_enable (mem_byte_enable_bl),
 	.mem_byte_enable256 (mem_byte_enable256),
 	.address (address)
 );
 
-endmodule : cache
+endmodule : cache_data

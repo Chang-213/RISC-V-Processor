@@ -34,20 +34,31 @@ assign rs2 = data[24:20];
 assign rd = data[11:7];
 
 //why "=" instead of "<="
-always_ff @(posedge clk)
+//always_ff @(posedge clk)
+//begin
+//    if (rst)
+//    begin
+//        data <= '0;
+//    end
+//    else if (load == 1)
+//    begin
+//        data <= in;
+//    end
+//    else
+//    begin
+//        data <= data;
+//    end
+//end
+
+always_comb
 begin
-    if (rst)
+if (rst)
     begin
-        data <= '0;
+        data = '0;
     end
-    else if (load == 1)
-    begin
-        data <= in;
-    end
-    else
-    begin
-        data <= data;
-    end
+else	 
+     data = in;
+
 end
 
 endmodule : ir

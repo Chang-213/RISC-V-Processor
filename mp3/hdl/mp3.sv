@@ -92,31 +92,6 @@ module mp3
 	assign i_mem_write = 1'b0;
 	assign i_mem_byte_enable = 4'b0;
 	
-	//set datapath signals
-//	assign inst_resp = i_mem_resp;
-//	assign inst_rdata = i_mem_rdata;
-//	assign data_resp = d_mem_resp;
-//	assign data_rdata = d_mem_rdata;
-//	assign inst_read = i_mem_read;
-//	assign inst_addr = i_mem_address;
-//	assign data_read = d_mem_read;
-//	assign data_write = d_mem_write;
-//	assign data_mbe = d_mem_byte_enable;
-//	assign data_addr = d_mem_address;
-//	assign data_wdata = d_mem_wdata;
-	
-	//set shadow signals
-//	assign s_inst_resp = inst_resp;
-//	assign s_inst_rdata = inst_rdata;
-//	assign s_data_resp = data_resp;
-//	assign s_data_rdata = data_rdata;
-//	assign s_inst_read = inst_read;
-//	assign s_inst_addr = inst_addr;
-//	assign s_data_read = data_read;
-//	assign s_data_write = data_write;
-//	assign s_data_mbe = data_mbe;
-//	assign s_data_addr = data_addr;
-//	assign s_data_wdata = data_wdata;
 /*****************************************************************************/
 
 /**************************** Control Signals ********************************/
@@ -162,7 +137,7 @@ cache l1icache(
 	.pmem_resp (i_pmem_resp)					//input
 );
 
-cache l1dcache(
+cache_data l1dcache(
 	.clk (clk),
 	.rst (rst),
 	
