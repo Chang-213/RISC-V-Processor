@@ -3,25 +3,23 @@
 .section .text
 .globl _start
 _start:
-    lw x1, %lo(NEGTWO)(x0)
+    lw x1, %lo(NEGTWO)(x0)	#60
     lw x2, %lo(TWO)(x0)
     lw x4, %lo(ONE)(x0)
-	lw x8, %lo(EIGHT)(x0)
-	nop
+    nop
+    nop						#70
     nop
     nop
     nop
+    nop						#80
+    nop
+    beq x0, x0, LOOP		#88
+    nop
+    nop						#90
     nop
     nop
     nop
-    nop
-    beq x0, x0, LOOP
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
+    nop						#a0
     nop
 
 .section .rodata
@@ -30,7 +28,6 @@ ONE:    .word 0x00000001
 TWO:    .word 0x00000002
 NEGTWO: .word 0xFFFFFFFE
 TEMP1:  .word 0x00000001
-EIGHT:  .word 0x00000005
 GOOD:   .word 0x600D600D
 BADD:   .word 0xBADDBADD
 
@@ -38,35 +35,35 @@ BADD:   .word 0xBADDBADD
 .section .text
 .align 4
 LOOP:
-    add x3, x1, x2 # X3 <= X1 + X2
+    add x3, x1, x2 # X3 <= X1 + X2		#a8
     and x5, x1, x4 # X5 <= X1 & X4
-    not x6, x1     # X6 <= ~X1
+    not x6, x1     # X6 <= ~X1			#b0
     addi x9, x0, %lo(TEMP1) # X9 <= address of TEMP1
     nop
     nop
+    nop									#c0
     nop
     nop
     nop
-    nop
-    sw x6, 0(x9)   # TEMP1 <= x6
+    sw x6, 0(x9)   # TEMP1 <= x6		#d0
     lw x7, %lo(TEMP1)(x0) # X7    <= TEMP1
     add x1, x1, x4 # X1    <= X1 + X4
     nop
+    nop									#e0
     nop
     nop
     nop
+    nop									#f0
+    nop
+    blt x0, x1, DONEa					#f8
+    nop
+    nop									#100
     nop
     nop
     nop
-    blt x8, x1, DONEa
+    nop									#110
     nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    nop
-    beq x0, x0, LOOP
+    beq x0, x0, LOOP					#118
     nop
     nop
     nop

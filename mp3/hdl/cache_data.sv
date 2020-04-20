@@ -33,6 +33,7 @@ module cache_data #(
 );
 
 logic [31:0] mem_rdata_reg;
+logic mem_resp_more;
 
 //CACHE TO BUSLINE ADAPTER
 	 logic [255:0] mem_wdata256;
@@ -75,9 +76,17 @@ logic [31:0] mem_rdata_reg;
 register_comb mem_rdata_save(
 	.clk (clk),
    .rst (rst),
-   .load (mem_resp),
+   .load (mem_resp | mem_resp_more),
    .in   (mem_rdata_reg),
    .out  (mem_rdata)
+);
+
+register mem_resp_more_cheese(
+	.clk (clk),
+   .rst (rst),
+   .load (mem_resp),
+   .in   (mem_resp),
+   .out  (mem_resp_more)
 );
 	
 cache_control_data control

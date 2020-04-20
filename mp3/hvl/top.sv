@@ -22,7 +22,7 @@ assign clk = itf.clk;
 
 assign rvfi.commit = 0; // Set high when a valid instruction is modifying regfile or PC
 // Set high when you detect an infinite loop
-assign rvfi.halt = dut.datapath.load_pc & (dut.datapath.pc_out == dut.datapath.pc_wb_out) & (dut.datapath.opcode == 7'b1100011);
+assign rvfi.halt = dut.datapath.load_pc & (dut.datapath.pc_out == dut.datapath.branch_addr_out) & (dut.datapath.opcode == 7'b1100011);
 initial rvfi.order = 0;
 always @(posedge itf.clk iff rvfi.commit) rvfi.order <= rvfi.order + 1; // Modify for OoO
 /**************************** End RVFIMON signals ****************************/

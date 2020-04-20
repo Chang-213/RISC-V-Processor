@@ -32,6 +32,7 @@ logic load_pc;
 assign load_pc = inst_resp;
 logic [1:0] branch;
 logic [1:0] pcmux_sel_m;
+rv32i_word branch_addr_out;
 rv32i_word pc_out;
 rv32i_word pc_d_out;
 rv32i_word pc_e_out;
@@ -192,6 +193,14 @@ mux4 PCMUX(
 	.in2 ({alu_reg_m[31:1], 1'b0}),	//JALR
 	.in3 (alu_reg_m),						//BR
 	.out (pcmux_out)
+);
+
+register BRANCH_ADDR(
+	.clk (clk),
+   .rst (rst),
+   .load (br_en_m == 1 && control_m.opcode == op_br),
+   .in   (alu_reg_m),
+   .out  (branch_addr_out)
 );
 
 register PC_Reg_D(
@@ -459,7 +468,7 @@ regfile regfile(
 	.reg_a (rs1_out),
 	.reg_b (rs2_out)
 );
-//Write_Reg signal???
+
 
 //in2, u_imm: unsure about the stage of u_imm required, u_imm is only selected for LUI instruction
 mux9 REGMUX(
