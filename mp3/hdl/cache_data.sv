@@ -76,7 +76,7 @@ logic mem_resp_more;
 register_comb mem_rdata_save(
 	.clk (clk),
    .rst (rst),
-   .load (mem_resp | mem_resp_more),
+   .load (mem_resp),
    .in   (mem_rdata_reg),
    .out  (mem_rdata)
 );
