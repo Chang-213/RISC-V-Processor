@@ -1,5 +1,5 @@
 
-module cache_control (
+module l2_control (
 	//Generic signals
 	input clk,
 	input rst,
@@ -15,7 +15,6 @@ module cache_control (
 	input logic hit0,
 	input logic hit1,
 	input logic lru_out,
-	input logic [1:0] branch,
 	
 	//Control to Cache
 	output logic mem_resp,
@@ -40,19 +39,9 @@ module cache_control (
 
 enum int unsigned {
     /* List of states */
-	 //RESET,
 	 ACCESS,
 	 WRITE_BACK,
 	 ALLOCATE
-	 
-//	 READ,
-//	 READ_MISS_LOAD,
-//	 READ_EVIC,
-//	 WRITE,
-//	 WRITE_MISS_LOAD,
-//	 WRITE_EVIC,
-//	 END
-
 } state, next_states;
 
 always_comb
@@ -74,10 +63,6 @@ begin : state_actions
 	pmem_write = 0;
 	
 	unique case (state)
-//	RESET:
-//	begin
-//		
-//	end
 	ACCESS:
 	begin
 		lru_load = 1;	//evict LRU
@@ -123,6 +108,7 @@ begin : state_actions
 			valid_load1 = 1;	
 			tag_load1 = 1;	
 			dirty_load1 = 1;
+			//lru_load = 1;
 			end
 		else
 			begin
@@ -130,9 +116,10 @@ begin : state_actions
 			valid_load0 = 1;	
 			tag_load0 = 1;	
 			dirty_load0 = 1;
+			//lru_load = 1;
 			end
+		
 		end
-
 	endcase
 end
 
@@ -140,16 +127,9 @@ always_comb
 begin : next_state
 	next_states = state;
 	unique case (state)
-//	RESET:
-//		begin
-//		if(read_array || write_array)
-//			next_states = ACCESS;
-//		else
-//			next_states = RESET;
-//		end
 	ACCESS:
 		begin
-		if((read_array || write_array) && !hit1 && !hit0 && !dirty_bit && branch == 2'b00)	//cache miss and clean
+		if((read_array || write_array) && !hit1 && !hit0 && !dirty_bit)	//cache miss and clean
 			next_states = ALLOCATE;
 		else if ((read_array || write_array) && !hit1 && !hit0 && dirty_bit)  //cache miss and dirty
 			next_states = WRITE_BACK;
@@ -181,4 +161,4 @@ begin
 		state <= next_states;
 end
 
-endmodule : cache_control
+endmodule : l2_control

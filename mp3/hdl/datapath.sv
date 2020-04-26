@@ -10,13 +10,35 @@ module datapath
 	 input [31:0] inst_rdata,
 	 input data_resp,
 	 input [31:0] data_rdata,
+	 input [1:0] muxA,	
+	 input [1:0] muxB,	
+	 input rs1d_forw,	
+	 input rs2d_forw,	
+	 input rs2_forw,	
+	 input stall,	
+	 input flush,	
+	 input wb_mem,
 	 output logic inst_read,
 	 output [31:0] inst_addr,
 	 output data_read,
 	 output data_write,
-	 output [3:0] data_mbe,
+	 output logic [3:0] data_mbe,
 	 output [31:0] data_addr,
-	 output [31:0] data_wdata
+	 output [31:0] data_wdata,
+	 output rv32i_reg rd_e_out,	
+	 output rv32i_reg rd_m_out,	
+	 output rv32i_reg rd_wb_out,	
+	 output rv32i_word rs2_exe,	
+	 output rv32i_word rs2_mem,	
+	 output rv32i_word rs1_mem,	
+	 output rv32i_word rs1_exe,	
+	 output rv32i_word rs2_dec,	
+	 output rv32i_word rs1_dec,	
+	 output rv32i_control_word control_e,	
+	 output rv32i_control_word control_wb,	
+	 output rv32i_control_word control_m,	
+	 output logic br_en_m,	
+	 output logic [1:0] branch
 );
 
 //Stage Load Values
@@ -29,8 +51,8 @@ logic [31:0] d_addr_delay;
 
 //PC values
 logic load_pc;
-assign load_pc = inst_resp;
-logic [1:0] branch;
+//assign load_pc = inst_resp;
+//logic [1:0] branch;
 logic [1:0] pcmux_sel_m;
 rv32i_word branch_addr_out;
 rv32i_word pc_out;
@@ -40,6 +62,7 @@ rv32i_word pc_m_out;
 rv32i_word pc_wb_out;
 rv32i_word pc_plus4_out;
 rv32i_word pcmux_out;
+rv32i_word pcmux_out1;
 
 //IR values
 logic [2:0] funct3;
@@ -51,9 +74,12 @@ rv32i_opcode opcode_d;
 
 logic [4:0] rs1;
 logic [4:0] rs1_d;
+logic [4:0] rs1_e;	
+logic [4:0] rs1_m;
 logic [4:0] rs2;
 logic [4:0] rs2_d;
-
+logic [4:0] rs2_e;	
+logic [4:0] rs2_m;
 rv32i_reg rd;
 rv32i_reg rd_d;
 rv32i_reg rd_e;
@@ -86,6 +112,8 @@ rv32i_word mdrreg_out;
 rv32i_word rs1_out;
 rv32i_word rs1_reg_out;
 rv32i_word rs2_out;
+rv32i_word rs1_d_forw;	
+rv32i_word rs2_d_forw;
 rv32i_word rs2_reg_e_out;
 rv32i_word rs2_reg_m_out;
 rv32i_word regfilemux_out;
@@ -99,14 +127,16 @@ rv32i_word alu_reg_m;
 rv32i_word alu_reg_out;
 
 //Control Values
+rv32i_control_word control_stall;
 rv32i_control_word control_d;
-rv32i_control_word control_e;
-rv32i_control_word control_m;
-rv32i_control_word control_wb;
+rv32i_control_word control_flushM;
+//rv32i_control_word control_e;
+//rv32i_control_word control_m;
+//rv32i_control_word control_wb;
 
 //CMP values
 logic br_en;
-logic br_en_m;
+//logic br_en_m;
 rv32i_word cmp_mux_out;
 rv32i_word br_en_regmux;
 rv32i_word cmp_m_out;
@@ -123,19 +153,123 @@ rv32i_word lw_out;
 rv32i_word corrected;
 rv32i_word write_data;
 
-//load MAR signal
+//forwarding	
+rv32i_word aluMuxA;	
+rv32i_word aluMuxB;	
+rv32i_word rs2_forward;	
+assign rd_m_out = rd_m;	
+assign rd_wb_out = rd_wb;	
+assign rs2_exe = rs2_e;	
+assign rs2_mem = rs2_m;	
+assign rs1_mem = rs1_m;	
+assign rs1_exe = rs1_e;	
+assign ir_m_forward = ir_m_out;	
+assign ir_wb_forward = ir_wb_out;	
+logic [1:0] br_reg_out;	
+rv32i_word br_pc_reg;
+	
+//hazard	
+assign rs2_dec = rs2_d;	
+assign rs1_dec = rs1_d;	
+assign rd_e_out = rd_e;	
+logic stall_decode;	
+rv32i_word ir_flush;
+
+//extra rvfi
+RVFIMonPacket rvfi_packet;	
+RVFIMonPacket rvfi_packet_d;	
+RVFIMonPacket rvfi_packet_e;	
+RVFIMonPacket rvfi_packet_m;	
+RVFIMonPacket rvfi_packet_wb;	
+RVFIMonPacket rvfi_packet_d_in;	
+RVFIMonPacket rvfi_packet_e_in;	
+RVFIMonPacket rvfi_packet_m_in;	
+RVFIMonPacket rvfi_packet_wb_in;	
+RVFIMonPacket rvfi_packet_d_out;	
+RVFIMonPacket rvfi_packet_e_out;	
+RVFIMonPacket rvfi_packet_m_out;	
+RVFIMonPacket rvfi_packet_wb_out;
+//RVFIMonPacket rvfi_packet_wb_out2;	
+// Assign RVFI signals	
+assign rvfi_packet_d_in = rvfi_packet;	
+assign rvfi_packet_e_in = rvfi_packet_d;	
+assign rvfi_packet_m_in = rvfi_packet_e;	
+assign rvfi_packet_wb_in = rvfi_packet_m;	
+always_comb	
+begin	
+  //Fetch/Decode	
+  rvfi_packet = 0;	
+  rvfi_packet.pc_rdata = pc_out;	
+  rvfi_packet.pc_wdata = pcmux_out;	
+  rvfi_packet.instruction = inst_rdata;	
+  //Decode/Execute	
+  rvfi_packet_d = rvfi_packet_d_out;	
+  rvfi_packet_d.rs1 = rs1;	
+  rvfi_packet_d.rs2 = rs2;	
+  rvfi_packet_d.rs1_data = rs1 ? rs1_out : 0;	
+  rvfi_packet_d.rs2_data = rs2 ? rs2_out : 0;	
+  rvfi_packet_d.load_regfile = control_d.load_regfile;	
+  rvfi_packet_d.rd = control_d.load_regfile ? rd : 0;	
+  //Execute/Memory	
+  rvfi_packet_e = rvfi_packet_e_out;	
+  //Memory/Writeback	
+  rvfi_packet_m = rvfi_packet_m_out;	
+  rvfi_packet_m.mem_addr = data_addr;	
+  rvfi_packet_m.mem_rdata = data_rdata;
+  rvfi_packet_m.mem_wdata = data_wdata;
+  case (load_funct3_t'(funct3))	
+    lw: rvfi_packet_m.mem_rmask = 4'b1111;	
+    lh, lhu: rvfi_packet_m.mem_rmask = data_addr[1] ? 4'b1100 : 4'b0011;	
+    lb, lbu: rvfi_packet_m.mem_rmask = 4'b0001 << data_addr[1:0];	
+    default: rvfi_packet_m.mem_rmask = 0;	
+  endcase	
+  case (store_funct3_t'(funct3))	
+    sw: rvfi_packet_m.mem_wmask = 4'b1111;	
+    sh: rvfi_packet_m.mem_wmask = data_addr[1] ? 4'b1100 : 4'b0011;	
+    sb: rvfi_packet_m.mem_wmask = 4'b0001 << data_addr[1:0];	
+    default: rvfi_packet_m.mem_wmask = 0;	
+  endcase	
+  //Writeback/Commit	
+  //rvfi_packet_wb_out2 = rvfi_packet_wb_out;
+  //rvfi_packet_wb_out2.rd_wdata = regfilemux_out;	
+  //rvfi_packet_wb.mem_wdata = data_wdata;
+  rvfi_packet_wb = rvfi_packet_wb_out;	
+end
+
 //assign inst_read = (control_e.mem_read & data_resp) | (~control_e.mem_read);
 always_comb
 begin
-	if(control_d.mem_read && control_e.mem_read && control_m.mem_read)
+	if(control_stall.mem_read && control_flushM.mem_read && control_m.mem_read)
 		inst_read = 1'b1;
 	else
-		inst_read = (~control_e.mem_read);
+		inst_read = (~control_m.mem_read);
 end
 assign inst_addr = pc_out;
 assign data_read = control_m.mem_read;	//previously e
 assign data_write = control_m.mem_write;
-assign data_mbe = 4'b1111;
+
+always_comb
+begin
+	if(control_m.mem_read)
+	begin
+		if (alu_reg_m[1:0] == 2'b00)
+			data_mbe = control_m.r_mask;
+		else if (alu_reg_m[1:0] == 2'b01)
+			data_mbe = {control_m.r_mask[2:0], 1'b0};
+		else if (alu_reg_m[1:0] == 2'b10)
+			data_mbe = {control_m.r_mask[1:0], 2'b0};
+		else
+			data_mbe = {control_m.r_mask[0], 3'b0};
+	end
+//	else if (control_m.mem_write)
+//	begin
+//		
+//	end
+	else
+		data_mbe = 4'b1111;
+end
+
+//assign data_mbe = 4'b1111;
 assign data_addr = alu_reg_m;
 //always_comb
 //begin
@@ -147,16 +281,6 @@ assign data_addr = alu_reg_m;
 
 //assign opcode_d = rv32i_opcode'(ir_d_out[6:0]);
 assign pcmux_sel_m = branch;
-
-//////////////////D_Cache_Delay///////////
-register data_addr_delay(
-	.clk (clk),
-   .rst (rst),
-   .load (!data_resp && load_memory),
-   .in   (alu_reg_m),
-   .out  (d_addr_delay)
-);
-//////////////////////////////////////////////
 
 ////////////////Stage Transitions/////////////
 
@@ -179,7 +303,7 @@ stage_decode STAGE_DECODE(
 pc_register PC(
     .clk  (clk),
     .rst (rst),
-    .load (load_pc ), //| (br_en_m == 1 && control_m.opcode == op_br)
+    .load (load_pc || branch != 2'b00), //| (br_en_m == 1 && control_m.opcode == op_br)
     .in   (pcmux_out),
     .out  (pc_out)
 );
@@ -206,7 +330,7 @@ register BRANCH_ADDR(
 register PC_Reg_D(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
+   .load (stall_decode),
    .in   (pc_out),
    .out  (pc_d_out)
 );
@@ -241,7 +365,7 @@ ir IR(
 	.clk (clk),
 	.rst (rst),
 	.load (1'b1),
-	.in (inst_rdata),
+	.in (ir_flush),
 	.funct3 (funct3),
 	.funct7 (funct7),
 	.opcode (opcode),
@@ -258,23 +382,54 @@ ir IR(
 register #(5) RS1_D(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
+   .load (stall_decode),
    .in   (rs1),
    .out  (rs1_d)
+);
+
+register #(5) RS1_E(	
+	.clk (clk),	
+   .rst (rst),	
+   .load (load_execute),	
+   .in   (rs1_d),	
+   .out  (rs1_e)	
+);	
+
+register #(5) RS1_M(	
+	.clk (clk),	
+   .rst (rst),	
+   .load (load_memory),	
+   .in   (rs1_e),	
+   .out  (rs1_m)	
 );
 
 register #(5) RS2_D(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
+   .load (stall_decode),
    .in   (rs2),
    .out  (rs2_d)
+);
+
+	register #(5) RS2_E(	
+	.clk (clk),	
+   .rst (rst),	
+   .load (load_execute),	
+   .in   (rs2_d),	
+   .out  (rs2_e)	
+);	
+register #(5) RS2_M(	
+	.clk (clk),	
+   .rst (rst),	
+   .load (load_memory),	
+   .in   (rs2_e),	
+   .out  (rs2_m)	
 );
 
 register #(3) FUNCT3_D(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
+   .load (stall_decode),
    .in   (funct3),
    .out  (funct3_d)
 );
@@ -282,7 +437,7 @@ register #(3) FUNCT3_D(
 register #(7) FUNCT7_D(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
+   .load (stall_decode),
    .in   (funct7),
    .out  (funct7_d)
 );
@@ -290,7 +445,7 @@ register #(7) FUNCT7_D(
 opcode_reg OPCODE_D(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
+   .load (stall_decode),
    .in   (opcode),
    .out  (opcode_d)
 );
@@ -298,7 +453,7 @@ opcode_reg OPCODE_D(
 register #(5) RD_D(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
+   .load (stall_decode),
    .in   (rd),
    .out  (rd_d)
 );
@@ -330,8 +485,8 @@ register #(5) RD_WB(
 register IR_Reg_D(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
-   .in   (inst_rdata),
+   .load (stall_decode),
+   .in   (ir_flush),
    .out  (ir_d_out)
 );
 
@@ -362,7 +517,7 @@ register IR_Reg_WB(
 register IR_Reg_D_UIMM(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
+   .load (stall_decode),
    .in   (u_imm),
    .out  (u_imm_d)
 );
@@ -394,7 +549,7 @@ register IR_Reg_WB_UIMM(
 register IR_Reg_E_ID_IMM(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
+   .load (stall_decode),
    .in   (i_imm),
    .out  (i_imm_d)
 );
@@ -410,7 +565,7 @@ register IR_Reg_E_IIMM(
 register IR_Reg_D_BIMM(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
+   .load (stall_decode),
    .in   (b_imm),
    .out  (b_imm_d)
 );
@@ -426,7 +581,7 @@ register IR_Reg_E_BIMM(
 register IR_Reg_D_SIMM(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
+   .load (stall_decode),
    .in   (s_imm),
    .out  (s_imm_d)
 );
@@ -442,7 +597,7 @@ register IR_Reg_E_SIMM(
 register IR_Reg_D_JIMM(
 	.clk (clk),
    .rst (rst),
-   .load (load_decode),
+   .load (stall_decode),
    .in   (j_imm),
    .out  (j_imm_d)
 );
@@ -491,7 +646,7 @@ register RS1_Reg(
 	.clk (clk),
    .rst (rst),
    .load (load_execute),
-   .in   (rs1_out),
+   .in   (rs1_d_forw),
    .out  (rs1_reg_out)
 );
 
@@ -499,7 +654,7 @@ register RS2_Reg_E(
 	.clk (clk),
    .rst (rst),
    .load (load_execute),
-   .in   (rs2_out),
+   .in   (rs2_d_forw),
    .out  (rs2_reg_e_out)
 );
 
@@ -507,8 +662,17 @@ register RS2_Reg_M(
 	.clk (clk),
    .rst (rst),
    .load (load_memory),
-   .in   (rs2_reg_e_out),
+   .in   (aluMuxB),
    .out  (rs2_reg_m_out)
+);
+
+mux2 mem_forward(	
+	.clk,	
+	.rst,	
+	.select (rs2_forw),	
+	.in0 (rs2_reg_m_out),	
+	.in1 (regfilemux_out),	
+	.out (rs2_forward)	
 );
 ////////////////////////////////////////////////
 
@@ -524,14 +688,14 @@ control_signal_reg CS_REG_E(
 	.clk  (clk),
 	.rst  (rst),
 	.load (load_execute),
-	.in   (control_d),
+	.in   (control_stall),
 	.out  (control_e)
 );
 control_signal_reg CS_REG_M(
 	.clk  (clk),
 	.rst  (rst),
 	.load (load_memory),
-	.in   (control_e),
+	.in   (control_flushM),
 	.out  (control_m)
 );
 control_signal_reg CS_REG_WB(
@@ -545,7 +709,7 @@ control_signal_reg CS_REG_WB(
 
 ///////////ALU & Muxes//////////////////////////
 alu ALU(
-	.aluop (control_e.aluop),
+	.aluop (control_flushM.aluop),
 	.a (alumux1_out),
 	.b (alumux2_out),
 	.f (alu_out)
@@ -560,22 +724,79 @@ assign alu_mux_pc_out = pc_e_out;
 mux2 ALUMUX1(
 	.clk,
 	.rst,
-	.select (control_e.alumux1_sel),
-	.in0 (rs1_reg_out),
+	.select (control_flushM.alumux1_sel),
+	.in0 (aluMuxA),
 	.in1 (alu_mux_pc_out),
 	.out (alumux1_out)
+);
+
+mux2 #(1) stallMux(	
+	.clk,	
+	.rst,	
+	.select (stall),	
+	.in0 (load_decode),	
+	.in1 (0),	
+	.out (stall_decode)	
+);	
+mux2 #(1) pcloadmux(	
+	.clk,	
+	.rst,	
+	.select (stall),	
+	.in0 (inst_resp),	
+	.in1 (0),	
+	.out (load_pc)	
+);	
+mux2 rs1d_forw_mux(	
+	.clk,	
+	.rst,	
+	.select (rs1d_forw),	
+	.in0 (rs1_out),	
+	.in1 (regfilemux_out),	
+	.out (rs1_d_forw)	
+);	
+mux2 rs2d_forw_mux(	
+	.clk,	
+	.rst,	
+	.select (rs2d_forw),	
+	.in0 (rs2_out),	
+	.in1 (regfilemux_out),	
+	.out (rs2_d_forw)	
+);	
+ctrl_mux2 ctrlE_stall(	
+	.clk,	
+	.rst,	
+	.select (stall || flush),	
+	.in0 (control_d),	
+	.in1 (control_flush),	
+	.out (control_stall)	
+);	
+ctrl_mux2 ctrlM_flush(	
+	.clk,	
+	.rst,	
+	.select (flush),	
+	.in0 (control_e),	
+	.in1 (control_flush),	
+	.out (control_flushM)	
+);	
+ctrl_mux2 ir_flush_mux(	
+	.clk,	
+	.rst,	
+	.select (flush),	
+	.in0 (inst_rdata),	
+	.in1 (control_flush),	
+	.out (ir_flush)	
 );
 
 mux6 ALUMUX2(
 	.clk,
 	.rst,
-	.select (control_e.alumux2_sel),
+	.select (control_flushM.alumux2_sel),
 	.in0 (i_imm_e),
 	.in1 (u_imm_e),
-	.in2 (b_imm_e),
+	.in2 ({{20{b_imm_e[11]}}, b_imm_e[11:0]}),
 	.in3 (s_imm_e),
 	.in4 (j_imm_e),
-	.in5 (rs2_reg_e_out),
+	.in5 (aluMuxB),
 	.out (alumux2_out)
 );
 
@@ -599,8 +820,8 @@ register ALU_Reg_WB(
 /////////////CMP & MUXES////////////////////////
 //DONT FORGET BR_EN_REG
 cmp CMP(
-	.cmpop (control_e.cmpop),
-	.a (rs1_reg_out),
+	.cmpop (control_flushM.cmpop),
+	.a (aluMuxA),
 	.b (cmp_mux_out),
 	.f (br_en)
 );
@@ -608,8 +829,8 @@ cmp CMP(
 mux2 CMPMUX(
 	.clk,
 	.rst,
-	.select (control_e.cmpmux_sel),
-	.in0 (rs2_reg_e_out),
+	.select (control_flushM.cmpmux_sel),
+	.in0 (aluMuxB),
 	.in1 (i_imm_e),
 	.out (cmp_mux_out)
 );
@@ -663,10 +884,10 @@ mux4 correctedpath(
   .clk,
   .rst,
   .select (control_m.store_type),
-  .in0 (rs2_reg_m_out),
-  .in1 (rs2_reg_m_out << 8),
-  .in2 (rs2_reg_m_out << 16),
-  .in3 (rs2_reg_m_out << 24),
+  .in0 (rs2_forward),
+  .in1 (rs2_forward << 8),
+  .in2 (rs2_forward << 16),
+  .in3 (rs2_forward << 24),
   .out (data_wdata)
 );
 
@@ -682,32 +903,97 @@ register DCACHE_OUT(
 ////////LOADS///////////////////////////////////
 lh LH(
 	.in0 (write_data),
-	.select (control_wb.store_type),
+	.select (alu_reg_out[1:0]),
 	.out (lh_out)
 );
 
 lhu LHU(
 	.in0 (write_data),
-	.select (control_wb.store_type),
+	.select (alu_reg_out[1:0]),
 	.out (lhu_out)
 );
 
 lb LB(
 	.in0 (write_data),
-	.select (control_wb.store_type),
+	.select (alu_reg_out[1:0]),
 	.out (lb_out)
 );
 
 lbu LBU(
 	.in0 (write_data),
-	.select (control_wb.store_type),
+	.select (alu_reg_out[1:0]),
 	.out (lbu_out)
 );
 
 lw LW(
   .in0 (write_data),
-  .select (control_wb.store_type),
+  .select (alu_reg_out[1:0]),
   .out (lw_out)
 );
+////////////////////////////////////////////////
+////////////////FORWARDING/////////////////////	
+mux4 alu_muxA(	
+  .clk,	
+  .rst,	
+  .select (muxA),	
+  .in0 (rs1_reg_out),	
+  .in1 (regfilemux_out),	
+  .in2 (alu_reg_m),	
+  .in3 (data_rdata),	
+  .out (aluMuxA)	
+);	
+mux4 alu_muxB(	
+  .clk,	
+  .rst,	
+  .select (muxB),	
+  .in0 (rs2_reg_e_out),	
+  .in1 (regfilemux_out),	
+  .in2 (alu_reg_m),	
+  .in3 (data_rdata),	
+  .out (aluMuxB)	
+);	
+control_rom flushed_control(	
+    .opcode (op_imm),	
+    .funct3 (3'b0),	
+    .funct7 (7'b0),	
+    .ctrl   (control_flush)	
+);
+
+////////RVFIMon Packets///////////////////////////////////	
+rvfi_reg RVFI_Reg_D(	
+	.clk (clk),	
+   .rst (rst),	
+   .load (stall_decode),	
+   .in1   (rvfi_packet_d_in),	
+   .out1  (rvfi_packet_d_out)
+);
+rvfi_reg RVFI_Reg_E(	
+	.clk (clk),	
+   .rst (rst),	
+   .load (load_execute),	
+   .in1   (rvfi_packet_e_in),	
+   .out1  (rvfi_packet_e_out)	
+);	
+rvfi_reg RVFI_Reg_M(	
+	.clk (clk),	
+   .rst (rst),	
+   .load (load_memory),	
+   .in1   (rvfi_packet_m_in),	
+   .out1  (rvfi_packet_m_out)	
+);	
+rvfi_reg_out RVFI_Reg_WB(	
+	.clk (clk),	
+   .rst (rst),	
+   .load (load_writeback),	
+   .in1   (rvfi_packet_wb_in),
+	.in2 (regfilemux_out),
+   .out1  (rvfi_packet_wb_out)	
+);	
+//rvfi_reg_out RVFI_Reg_OUT(	
+//	.clk (clk),	
+//   .rst (rst),	
+//   .in1   (rvfi_packet_wb_out2),	
+//   .out1  (rvfi_packet_wb)	
+//);	
 ////////////////////////////////////////////////
 endmodule : datapath

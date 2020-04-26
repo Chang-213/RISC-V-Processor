@@ -12,11 +12,13 @@ branch_funct3_t branch_funct3;
 store_funct3_t store_funct3;
 load_funct3_t load_funct3;
 arith_funct3_t arith_funct3;
+alu_ops alu_op3;
 
 assign arith_funct3 = arith_funct3_t'(funct3);
 assign branch_funct3 = branch_funct3_t'(funct3);
 assign load_funct3 = load_funct3_t'(funct3);
 assign store_funct3 = store_funct3_t'(funct3);
+assign alu_op3 = alu_ops'(funct3);
 
 always_comb
 begin
@@ -33,11 +35,17 @@ begin
     ctrl.regfilemux_sel = regfilemux::alu_out;
 	 ctrl.cmpmux_sel = cmpmux::rs2_out;
     ctrl.aluop = alu_ops'(funct3);
-	 ctrl.store_type = 2'b00;
+	 ctrl.store_type = store_funct3;
+	 ctrl.r_mask = 4'b0;
+	 ctrl.w_mask = 4'b0;
+	 ctrl.load_type = load_funct3;
     /* Assign control signals based on opcode */
     case(opcode)
         op_auipc: begin
             ctrl.aluop = alu_add;
+				ctrl.alumux1_sel = alumux::pc_out;
+				ctrl.alumux2_sel = alumux::u_imm;
+				ctrl.load_regfile = 1'b1;
         end
 
         /* ... other opcodes ... */
@@ -55,22 +63,27 @@ begin
             lw: begin
 				ctrl.regfilemux_sel = regfilemux::lw;
 				ctrl.store_type = 2'b00;
+				ctrl.r_mask = 4'b1111;
 				end
             lh: begin
 				ctrl.regfilemux_sel = regfilemux::lh;
 				ctrl.store_type = 2'b00;
+				ctrl.r_mask = 4'b0011;
 				end
             lhu: begin
 				ctrl.regfilemux_sel = regfilemux::lhu;
 				ctrl.store_type = 2'b00;
+				ctrl.r_mask = 4'b0011;
 				end
             lb: begin
 				ctrl.regfilemux_sel = regfilemux::lb;
 				ctrl.store_type = 2'b00;
+				ctrl.r_mask = 4'b0001;
 				end
             lbu: begin
 				ctrl.regfilemux_sel = regfilemux::lbu;
 				ctrl.store_type = 2'b00;
+				ctrl.r_mask = 4'b0001;
 				end
           endcase
 			 ctrl.mem_read = 1'b1;

@@ -1,7 +1,6 @@
-
-module cache #(
+module l2_cache #(
     parameter s_offset = 5,
-    parameter s_index  = 3,
+    parameter s_index  = 4,	//maybe change to 4?
     parameter s_tag    = 32 - s_offset - s_index,
     parameter s_mask   = 2**s_offset,
     parameter s_line   = 8*s_mask,
@@ -12,14 +11,13 @@ module cache #(
 	input logic clk,
 	input logic rst,
 	
-	//CPU DATAPATH to CACHE
+	//CACHEL2 to ARBITER
 	input logic [31:0] mem_address,
-	output logic [31:0] mem_rdata,
-	input logic [31:0] mem_wdata,
+	output logic [255:0] mem_rdata,
+	input logic [255:0] mem_wdata,
 	input logic mem_read,
 	input logic mem_write,
-	input logic [3:0] mem_byte_enable,
-	input logic [1:0] branch,
+	input logic [31:0] mem_byte_enable,
 	output logic mem_resp,
 	
 	//CACHE to PYHSICAL MEMORY
@@ -29,24 +27,11 @@ module cache #(
 	output logic pmem_read,
 	output logic pmem_write,
 	input logic	pmem_resp
-	
-	
 );
-
-//CACHE TO BUSLINE ADAPTER
-	 logic [255:0] mem_wdata256;
-    logic [255:0] mem_rdata256;
-    //logic [31:0] mem_wdata_bl;
-    logic [31:0] mem_rdata_bl;
-    logic [3:0] mem_byte_enable_bl;
-    logic [31:0] mem_byte_enable256;
-    logic [31:0] address;
 	 
 //DATAPATH TO CONTROL
 	logic lru_load;
 	logic lru_out = 1'b1;
-	//logic read_array;
-	//logic write_array;
 	logic data_select;
 	logic dirty_select;
 	logic pmem_select;
@@ -62,16 +47,8 @@ module cache #(
 	logic valid_bit;
 	logic hit0;
 	logic hit1;
-	
 
-	//assign read_array = mem_read;
-	//assign write_array = mem_write;
-	assign mem_rdata256 = pmem_wdata;
-	//assign mem_wdata_bl = mem_wdata;
-	assign mem_byte_enable_bl = mem_byte_enable;
-	assign address = mem_address;
-	
-cache_control control
+l2_control control
 (
 	.clk (clk),
 	.rst (rst),
@@ -87,7 +64,6 @@ cache_control control
 	.hit0 (hit0),
 	.hit1 (hit1),
 	.lru_out (lru_out),
-	.branch(branch),
 	
 	//Control to Cache
 	.mem_resp (mem_resp),
@@ -109,12 +85,13 @@ cache_control control
 	.dirty_load1 (dirty_load1)
 );
 
-cache_datapath datapath
+l2_datapath datapath
 (
 	.clk (clk),
 	.rst (rst),
-	.mem_byte_enable256 (mem_byte_enable256),
-	.mem_wdata256 (mem_wdata256),
+	.mem_byte_enable256 (mem_byte_enable),
+	.mem_wdata256 (mem_wdata),
+	.mem_rdata256 (mem_rdata),
 	.pmem_wdata (pmem_wdata),
 	.pmem_address (pmem_address),
 	.pmem_rdata (pmem_rdata),
@@ -140,15 +117,4 @@ cache_datapath datapath
 	.lru_out (lru_out)
 );
 
-bus_adapter bus_adapter
-(
-	.mem_wdata256 (mem_wdata256),
-	.mem_rdata256 (pmem_wdata),
-	.mem_wdata (mem_wdata),
-	.mem_rdata (mem_rdata),
-	.mem_byte_enable (mem_byte_enable_bl),
-	.mem_byte_enable256 (mem_byte_enable256),
-	.address (address)
-);
-
-endmodule : cache
+endmodule : l2_cache

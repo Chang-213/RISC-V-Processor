@@ -85,7 +85,29 @@ typedef struct packed {
     logic load_ir;
     logic mem_write;
 	 logic mem_read;
-	 logic [1:0] store_type;
+	 logic [2:0] store_type;
+	 logic [3:0] r_mask;
+	 logic [3:0] w_mask;
+	 logic [2:0] load_type;
 } rv32i_control_word;
+
+	//RVFIMon Signals	
+typedef struct packed {	
+	rv32i_word instruction;	
+	rv32i_reg rs1;	
+	rv32i_reg rs2;	
+	rv32i_word rs1_data;	
+	rv32i_word rs2_data;	
+	logic load_regfile;	
+  rv32i_reg rd;	
+  rv32i_word rd_wdata;	
+  rv32i_word pc_rdata;	
+  rv32i_word pc_wdata;	
+  rv32i_word mem_addr;	
+  logic [3:0] mem_rmask;	
+  logic [3:0] mem_wmask;	
+  rv32i_word mem_rdata;	
+  rv32i_word mem_wdata;	
+} RVFIMonPacket;
 
 endpackage : rv32i_types

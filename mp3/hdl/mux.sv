@@ -111,7 +111,9 @@ always_comb
 			out = in6;
 		else if (select == 4'b0111)
 			out = in7;
-		else
+		else if (select ==4'b1000)
 			out = in8;
+		else
+			out = in0;
 	end
 endmodule : mux9
