@@ -108,6 +108,7 @@ typedef struct packed {
   logic [3:0] mem_wmask;	
   rv32i_word mem_rdata;	
   rv32i_word mem_wdata;	
+  logic commit;
 } RVFIMonPacket;
 
 endpackage : rv32i_types

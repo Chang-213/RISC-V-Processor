@@ -2,7 +2,7 @@
 
 # Settings
 ECE411DIR=$HOME/ECE411
-DEFAULT_TARGET=$ECE411DIR/mp3/letUsGraduate/mp3/simulation/modelsim/memory.lst
+DEFAULT_TARGET=$ECE411DIR/mp3_git_version/letUsGraduate/mp3/simulation/modelsim/memory.lst
 ASSEMBLER=/class/ece411/software/riscv-tools/bin/riscv32-unknown-elf-gcc
 OBJCOPY=/class/ece411/software/riscv-tools/bin/riscv32-unknown-elf-objcopy
 OBJDUMP=/class/ece411/software/riscv-tools/bin/riscv32-unknown-elf-objdump

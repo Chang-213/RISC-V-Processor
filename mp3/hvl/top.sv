@@ -21,16 +21,7 @@ assign clk = itf.clk;
 // This section not required until CP3
 
 // Set high when a valid instruction is modifying regfile or PC
-initial rvfi.commit = 0;
-always @(posedge itf.clk)
-begin
-  if (rvfi.commit == 1'b1) rvfi.commit <= 1'b0; // Only high for one cycle
-  //If the writeback stage is being loaded with a new instruction, and the current PC in the writeback stage is not 0, then the instruction is being commited
-  else if(dut.datapath.load_writeback == 1'b1 && dut.datapath.rvfi_packet_wb.pc_rdata != 0)
-    rvfi.commit <= 1'b1;
-  else
-    rvfi.commit <= 1'b0;
-end
+assign rvfi.commit = dut.datapath.rvfi_packet_wb.commit;
 
 // Set high when you detect an infinite loop
 assign rvfi.halt = (dut.datapath.pc_e_out == dut.datapath.pcmux_out);
@@ -44,7 +35,7 @@ always_comb
 begin : trap_check
     rvfi.trap = 0;
     // If the instruction cannot be decoded
-    case (dut.datapath.opcode)
+    case (dut.datapath.control_wb.opcode)
         7'b0110111, 7'b0010111, 7'b0010011, 7'b0110011, 7'b1101111, 7'b1100111:;
 		//BR_instructions
         7'b1100011: begin

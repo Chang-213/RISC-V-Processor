@@ -130,6 +130,7 @@ rv32i_word alu_reg_out;
 rv32i_control_word control_stall;
 rv32i_control_word control_d;
 rv32i_control_word control_flushM;
+rv32i_control_word control_flush;
 //rv32i_control_word control_e;
 //rv32i_control_word control_m;
 //rv32i_control_word control_wb;
@@ -189,7 +190,7 @@ RVFIMonPacket rvfi_packet_d_out;
 RVFIMonPacket rvfi_packet_e_out;	
 RVFIMonPacket rvfi_packet_m_out;	
 RVFIMonPacket rvfi_packet_wb_out;
-//RVFIMonPacket rvfi_packet_wb_out2;	
+
 // Assign RVFI signals	
 assign rvfi_packet_d_in = rvfi_packet;	
 assign rvfi_packet_e_in = rvfi_packet_d;	
@@ -200,36 +201,82 @@ begin
   //Fetch/Decode	
   rvfi_packet = 0;	
   rvfi_packet.pc_rdata = pc_out;	
-  rvfi_packet.pc_wdata = pcmux_out;	
-  rvfi_packet.instruction = inst_rdata;	
+  //rvfi_packet.pc_wdata = pcmux_out;	
+  rvfi_packet.instruction = inst_rdata;
+  rvfi_packet.rs1 = rs1;	
+  rvfi_packet.rs2 = rs2;
+
   //Decode/Execute	
-  rvfi_packet_d = rvfi_packet_d_out;	
-  rvfi_packet_d.rs1 = rs1;	
-  rvfi_packet_d.rs2 = rs2;	
-  rvfi_packet_d.rs1_data = rs1 ? rs1_out : 0;	
-  rvfi_packet_d.rs2_data = rs2 ? rs2_out : 0;	
-  rvfi_packet_d.load_regfile = control_d.load_regfile;	
-  rvfi_packet_d.rd = control_d.load_regfile ? rd : 0;	
-  //Execute/Memory	
-  rvfi_packet_e = rvfi_packet_e_out;	
+  rvfi_packet_d = rvfi_packet_d_out;		
+  rvfi_packet_d.rs1_data = rs1_d ? rs1_out : 0;	
+  rvfi_packet_d.rs2_data = rs2_d ? rs2_out : 0;	
+  rvfi_packet_d.load_regfile = control_stall.load_regfile;	
+  rvfi_packet_d.rd = control_stall.load_regfile ? rd_d : 0;	
+  
+  //Execute/Memory
+  rvfi_packet_e = rvfi_packet_e_out;
+  rvfi_packet_e.mem_addr = {alu_out[31:2], 2'b0};
+  if(muxA == 1 || muxA == 2)
+  begin
+  rvfi_packet_e.rs1_data = aluMuxA;
+  end
+//  if(stall)
+//  begin
+//	rvfi_packet_e.instruction = '0;
+//  end
+  
   //Memory/Writeback	
-  rvfi_packet_m = rvfi_packet_m_out;	
-  rvfi_packet_m.mem_addr = data_addr;	
+  rvfi_packet_m = rvfi_packet_m_out;
+  if (control_m.opcode == op_br && br_en_m == 1)
+  begin
+  rvfi_packet_m.pc_wdata = pcmux_out;
+  end
   rvfi_packet_m.mem_rdata = data_rdata;
-  rvfi_packet_m.mem_wdata = data_wdata;
-  case (load_funct3_t'(funct3))	
-    lw: rvfi_packet_m.mem_rmask = 4'b1111;	
-    lh, lhu: rvfi_packet_m.mem_rmask = data_addr[1] ? 4'b1100 : 4'b0011;	
-    lb, lbu: rvfi_packet_m.mem_rmask = 4'b0001 << data_addr[1:0];	
-    default: rvfi_packet_m.mem_rmask = 0;	
-  endcase	
-  case (store_funct3_t'(funct3))	
-    sw: rvfi_packet_m.mem_wmask = 4'b1111;	
-    sh: rvfi_packet_m.mem_wmask = data_addr[1] ? 4'b1100 : 4'b0011;	
-    sb: rvfi_packet_m.mem_wmask = 4'b0001 << data_addr[1:0];	
-    default: rvfi_packet_m.mem_wmask = 0;	
-  endcase	
+  rvfi_packet_m.mem_wdata = rs2_forward;
+//  if(muxA == 1)
+//  begin
+//  rvfi_packet_m.rs1_data = aluMuxA;
+//  end
+  rvfi_packet_m.rs2_data = rs2_forward;
+  
+  if(control_m.opcode == op_load)
+  begin
+		rvfi_packet_m.mem_wmask = '0;
+		if (alu_reg_m[1:0] == 2'b00)
+			rvfi_packet_m.mem_rmask = control_m.r_mask;
+		else if (alu_reg_m[1:0] == 2'b01)
+			rvfi_packet_m.mem_rmask = {control_m.r_mask[2:0], 1'b0};
+		else if (alu_reg_m[1:0] == 2'b10)
+			rvfi_packet_m.mem_rmask = {control_m.r_mask[1:0], 2'b0};
+		else
+			rvfi_packet_m.mem_rmask = {control_m.r_mask[0], 3'b0};
+  end
+  else if (control_m.opcode == op_store)
+  begin
+		rvfi_packet_m.mem_wmask = 4'b1111;
+		rvfi_packet_m.mem_rmask = '0;
+  end
+  else
+  begin
+		rvfi_packet_m.mem_rmask = '0;
+		rvfi_packet_m.mem_wmask = '0;
+  end
+  
+//  case (load_funct3_t'(funct3))	
+//    lw: rvfi_packet_m.mem_rmask = 4'b1111;	
+//    lh, lhu: rvfi_packet_m.mem_rmask = data_addr[1] ? 4'b1100 : 4'b0011;	
+//    lb, lbu: rvfi_packet_m.mem_rmask = 4'b0001 << data_addr[1:0];	
+//    default: rvfi_packet_m.mem_rmask = 0;	
+//  endcase	
+//  case (store_funct3_t'(funct3))	
+//    sw: rvfi_packet_m.mem_wmask = 4'b1111;	
+//    sh: rvfi_packet_m.mem_wmask = data_addr[1] ? 4'b1100 : 4'b0011;	
+//    sb: rvfi_packet_m.mem_wmask = 4'b0001 << data_addr[1:0];	
+//    default: rvfi_packet_m.mem_wmask = 0;	
+//  endcase	
+  
   //Writeback/Commit	
+  //rvfi_packet_wb.rd_wdata = regfilemux_out;
   //rvfi_packet_wb_out2 = rvfi_packet_wb_out;
   //rvfi_packet_wb_out2.rd_wdata = regfilemux_out;	
   //rvfi_packet_wb.mem_wdata = data_wdata;
@@ -270,7 +317,7 @@ begin
 end
 
 //assign data_mbe = 4'b1111;
-assign data_addr = alu_reg_m;
+assign data_addr = {alu_reg_m[31:2], 2'b0};
 //always_comb
 //begin
 //	if(control_m.opcode == op_load)
@@ -625,7 +672,7 @@ regfile regfile(
 );
 
 
-//in2, u_imm: unsure about the stage of u_imm required, u_imm is only selected for LUI instruction
+//in2, u_imm: unsure about the stage of u_imm required, is only selected for LUI instruction
 mux9 REGMUX(
 	.clk,
 	.rst,
@@ -960,35 +1007,53 @@ control_rom flushed_control(
 );
 
 ////////RVFIMon Packets///////////////////////////////////	
-rvfi_reg RVFI_Reg_D(	
+rvfi_reg_start RVFI_Reg_D(	
 	.clk (clk),	
    .rst (rst),	
    .load (stall_decode),	
-   .in1   (rvfi_packet_d_in),	
+	.flush (flush),
+   .in1   (rvfi_packet_d_in),
+	.pcmux_out (pcmux_out),
    .out1  (rvfi_packet_d_out)
 );
-rvfi_reg RVFI_Reg_E(	
+rvfi_reg_e RVFI_Reg_E(	
 	.clk (clk),	
    .rst (rst),	
-   .load (load_execute),	
-   .in1   (rvfi_packet_e_in),	
+   .load (load_execute),
+	.flush (flush),	
+   .in1   (rvfi_packet_e_in),
+   .stall (stall),	
    .out1  (rvfi_packet_e_out)	
 );	
+
+//flush above 2 on flush
+
 rvfi_reg RVFI_Reg_M(	
 	.clk (clk),	
    .rst (rst),	
    .load (load_memory),	
-   .in1   (rvfi_packet_m_in),	
+	.flush (flush),
+   .in1   (rvfi_packet_m_in),
+	//.data_wdata (data_wdata),
    .out1  (rvfi_packet_m_out)	
 );	
 rvfi_reg_out RVFI_Reg_WB(	
 	.clk (clk),	
    .rst (rst),	
-   .load (load_writeback),	
+   .load (load_writeback),
+	.flush (flush),
    .in1   (rvfi_packet_wb_in),
-	.in2 (regfilemux_out),
+	.in2	(control_wb.load_regfile == 1 ? regfilemux_out : '0),
+	.stall_decode (stall_decode),
    .out1  (rvfi_packet_wb_out)	
-);	
+);
+//rvfi_reg RVFI_Reg_WB_FINAL(	
+//	.clk (clk),	
+//   .rst (rst),	
+//   .load (load_writeback),	
+//   .in1   (rvfi_packet_wb_out),
+//   .out1  (rvfi_packet_wb)	
+//);		
 //rvfi_reg_out RVFI_Reg_OUT(	
 //	.clk (clk),	
 //   .rst (rst),	
